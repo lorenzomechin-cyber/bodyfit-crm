@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { T } from '../lib/i18n'
 import { SUB, STATUSES } from '../lib/constants'
-import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate, waLink, generateReferralCode } from '../lib/helpers'
+import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate, waLink, generateReferralCode, detectLang, waMsg } from '../lib/helpers'
 import Icon from './Icon'
 
 function normPhone(p) { return (p || "").replace(/[^0-9]/g, "").slice(-9) }
@@ -79,7 +79,7 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
   const lcIdx = lifecycleStages.findIndex(s => s.k === lcStage)
   const isInactive = c.status === "inactive"
 
-  const waGenMsg = `Bonjour ${c.name || ''} ! C'est BodyFit Campo de Ourique \u{1F4AA}`
+  const waGenMsg = waMsg('greeting', c.lang || detectLang(c.phone), c.name || '')
   const waUrl = waLink(c.phone, waGenMsg)
 
   function up(field, value) { onUpdate({ ...c, [field]: value }) }
@@ -191,6 +191,7 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
         <div className="dps">
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.birthDate}</label><input className="fi" type="date" value={c.birthDate || ""} onChange={e => up("birthDate", e.target.value)} /></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.gender}</label><select className="fsl" value={c.gender || ""} onChange={e => up("gender", e.target.value)}><option value="male">{t.male}</option><option value="female">{t.female}</option></select></div>
+          <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.language}</label><select className="fsl" value={c.lang || 'pt'} onChange={e => up("lang", e.target.value)}><option value="pt">Português</option><option value="fr">Français</option><option value="en">English</option></select></div>
           <div className="fg"><label className="fl">{t.source}</label><select className="fsl" value={c.source || ""} onChange={e => up("source", e.target.value)}><option value="">--</option>{srcOptions.map(x => <option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></div>
         </div>
         <div className="dps"><div className="dst">{t.subscriptionInfo}</div>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { T } from '../lib/i18n'
-import { uid, waLink } from '../lib/helpers'
+import { uid, waLink, detectLang, waMsg } from '../lib/helpers'
 import { generateSlots, getSlotCounts, isSlotAvailable } from '../lib/helpers'
 import { MAX_MACHINES, GOOGLE_REVIEW_URL } from '../lib/constants'
 import { supabase } from '../lib/supabase'
@@ -139,29 +139,64 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
 
   const openDetail = (booking) => setModal({ mode: "detail", booking })
 
-  const saveBooking = () => {
+  const saveBooking = async () => {
     if (!modal) return
     const clientName = addMode === "existing" ? addClient?.name : addName.trim()
     const clientPhone = addMode === "existing" ? addClient?.phone : addPhone.trim()
     if (!clientName) return
-    // P0: Capacity guard — prevent overbooking
     if (!isSlotAvailable(bookings, modal.date, modal.slot)) {
-      alert("Ce creneau est complet (3/3 machines). Impossible d'ajouter une reservation.")
+      alert("Ce créneau est complet (3/3 machines).")
       return
     }
-    const nb = {
-      id: uid(), date: modal.date, timeSlot: modal.slot,
-      clientName, clientPhone: clientPhone || "",
-      clientId: addMode === "existing" ? addClient?.id : null,
-      type: addType, status: "confirmed", notes: addNotes.trim(), createdAt: new Date().toISOString()
+    const id = uid()
+    try {
+      const { data: result, error } = await supabase.rpc('book_slot', {
+        p_id: id, p_client_id: addMode === "existing" ? addClient?.id || '' : '',
+        p_client_name: clientName, p_client_phone: clientPhone || '',
+        p_date: modal.date, p_time_slot: modal.slot,
+        p_type: addType, p_notes: addNotes.trim()
+      })
+      if (error) {
+        // RPC not available — fallback to local insert
+        const nb = {
+          id, date: modal.date, timeSlot: modal.slot,
+          clientName, clientPhone: clientPhone || "",
+          clientId: addMode === "existing" ? addClient?.id : null,
+          type: addType, status: "confirmed", notes: addNotes.trim(),
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+        }
+        setBookings(prev => [...prev, nb])
+      } else if (result === 'FULL') {
+        alert("Ce créneau vient d'être rempli par un autre utilisateur.")
+        return
+      } else {
+        // Success — add to local state
+        const nb = {
+          id, date: modal.date, timeSlot: modal.slot,
+          clientName, clientPhone: clientPhone || "",
+          clientId: addMode === "existing" ? addClient?.id : null,
+          type: addType, status: "confirmed", notes: addNotes.trim(),
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+        }
+        setBookings(prev => [...prev, nb])
+      }
+    } catch {
+      // Network error — fallback to local insert
+      const nb = {
+        id, date: modal.date, timeSlot: modal.slot,
+        clientName, clientPhone: clientPhone || "",
+        clientId: addMode === "existing" ? addClient?.id : null,
+        type: addType, status: "confirmed", notes: addNotes.trim(),
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+      }
+      setBookings(prev => [...prev, nb])
     }
-    setBookings(prev => [...prev, nb])
     setModal(null)
   }
 
   const updateStatus = (id, status) => {
     const bk = bookings.find(b => b.id === id)
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status, updatedAt: new Date().toISOString() } : b))
     if (status === "noshow" && bk?.type === "trial" && setTrials) {
       setTrials(prev => prev.map(tr => {
         if (tr.name === bk.clientName || tr.phone === bk.clientPhone) return { ...tr, followUpStatus: "noAnswer", lastActionDate: new Date().toISOString().split("T")[0] }
@@ -473,7 +508,7 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
                     <span style={{ color: "var(--t2)" }}>{t.phone}:</span> {bk.clientPhone || "\u2014"}
                     {bk.clientPhone && (
                       <a
-                        href={waLink(bk.clientPhone, `Bonjour ${bk.clientName || ''} !`)}
+                        href={waLink(bk.clientPhone, waMsg('greeting', detectLang(bk.clientPhone), bk.clientName || ''))}
                         target="_blank"
                         rel="noopener"
                         title="WhatsApp"
@@ -499,7 +534,7 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
               <div className="mf">
                 {bk.status === "confirmed" ? (
                   <>
-                    {bk.clientPhone ? <a href={waLink(bk.clientPhone, `Bonjour ${bk.clientName || ''} ! Rappel de votre s\u00e9ance EMS demain \u00e0 ${bk.timeSlot} chez BodyFit. \u00c0 demain ! \u{1F4AA}`)} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="phone" s={11} /> {t.waReminder}</a> : null}
+                    {bk.clientPhone ? <a href={waLink(bk.clientPhone, waMsg('sessionReminder', detectLang(bk.clientPhone), bk.clientName || '', bk.timeSlot))} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="phone" s={11} /> {t.waReminder}</a> : null}
                     <button className="bt bok bsm" onClick={() => updateStatus(bk.id, "completed")}><Icon n="check" s={11} /> {t.markCompleted}</button>
                     <button className="bt bdd bsm" onClick={() => updateStatus(bk.id, "noshow")}><Icon n="alert" s={11} /> {t.markNoshow}</button>
                     {/* #7 — reschedule button */}
@@ -520,12 +555,12 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
                 ) : bk.status === "noshow" && bk.clientPhone ? (
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     {statusBadge(bk.status)}
-                    <a href={waLink(bk.clientPhone, `Bonjour ${bk.clientName || ''}, nous avons remarqu\u00e9 votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre s\u00e9ance ? \u{1F60A}`)} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="phone" s={11} /> {t.noShowFollowUp}</a>
+                    <a href={waLink(bk.clientPhone, waMsg('noshow', detectLang(bk.clientPhone), bk.clientName || ''))} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="phone" s={11} /> {t.noShowFollowUp}</a>
                   </div>
                 ) : bk.status === "completed" ? (
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                     {statusBadge(bk.status)}
-                    {bk.clientPhone ? <a href={waLink(bk.clientPhone, `Merci pour votre séance aujourd'hui ${bk.clientName || ''} ! \u{1F4AA}\n\nSi vous avez 30 secondes, un petit avis Google nous aide énormément :\n${GOOGLE_REVIEW_URL}\n\nMerci ! \u{1F64F}`)} target="_blank" rel="noopener" className="bt bsm" style={{ textDecoration: "none", color: "#fff", background: "#4285F4", border: "none", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon n="star" s={11} /> {t.askReview}</a> : null}
+                    {bk.clientPhone ? <a href={waLink(bk.clientPhone, waMsg('review', detectLang(bk.clientPhone), bk.clientName || '', GOOGLE_REVIEW_URL))} target="_blank" rel="noopener" className="bt bsm" style={{ textDecoration: "none", color: "#fff", background: "#4285F4", border: "none", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon n="star" s={11} /> {t.askReview}</a> : null}
                   </div>
                 ) : (
                   statusBadge(bk.status)

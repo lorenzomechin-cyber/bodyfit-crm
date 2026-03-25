@@ -104,6 +104,34 @@ export function waLink(phone, message) {
   return `https://wa.me/${clean.replace('+', '')}?text=${encodeURIComponent(message)}`
 }
 
+export function detectLang(phone) {
+  if (!phone) return 'pt'
+  const clean = phone.replace(/[\s\-()]/g, '')
+  if (clean.startsWith('+351') || clean.startsWith('351')) return 'pt'
+  if (clean.startsWith('+33') || clean.startsWith('33')) return 'fr'
+  if (clean.startsWith('+55') || clean.startsWith('55')) return 'pt' // Brazil
+  return 'en'
+}
+
+const WA_MSG = {
+  greeting: { pt: n => `Olá ${n}! É a BodyFit Campo de Ourique 💪`, fr: n => `Bonjour ${n} ! C'est BodyFit Campo de Ourique 💪`, en: n => `Hi ${n}! This is BodyFit Campo de Ourique 💪` },
+  trialReminder: { pt: n => `Olá ${n}! Lembramos da sua sessão de teste EMS prevista na BodyFit Campo de Ourique. Esperamos por si! 💪`, fr: n => `Bonjour ${n} ! On vous rappelle votre séance d'essai EMS prévue chez BodyFit Campo de Ourique. On a hâte de vous voir ! 💪`, en: n => `Hi ${n}! Reminder of your EMS trial session at BodyFit Campo de Ourique. We look forward to seeing you! 💪` },
+  sessionReminder: { pt: (n, t) => `Olá ${n}! Lembrete da sua sessão EMS amanhã às ${t} na BodyFit. Até amanhã! 💪`, fr: (n, t) => `Bonjour ${n} ! Rappel de votre séance EMS demain à ${t} chez BodyFit. À demain ! 💪`, en: (n, t) => `Hi ${n}! Reminder of your EMS session tomorrow at ${t} at BodyFit. See you tomorrow! 💪` },
+  noshow: { pt: n => `Olá ${n}, reparámos na sua ausência hoje na BodyFit. Gostaria de remarcar a sua sessão? 😊`, fr: n => `Bonjour ${n}, nous avons remarqué votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre séance ? 😊`, en: n => `Hi ${n}, we noticed your absence today at BodyFit. Would you like to reschedule your session? 😊` },
+  review: { pt: (n, url) => `Obrigado pela sua sessão hoje ${n}! 💪\n\nSe tiver 30 segundos, uma avaliação no Google ajuda-nos imenso:\n${url}\n\nObrigado! 🙏`, fr: (n, url) => `Merci pour votre séance aujourd'hui ${n} ! 💪\n\nSi vous avez 30 secondes, un avis Google nous aide énormément :\n${url}\n\nMerci ! 🙏`, en: (n, url) => `Thanks for your session today ${n}! 💪\n\nIf you have 30 seconds, a Google review helps us a lot:\n${url}\n\nThank you! 🙏` },
+  todayReminder: { pt: (n, t) => `Olá ${n}, lembrete da sua sessão BodyFit hoje às ${t}. Até já!`, fr: (n, t) => `Bonjour ${n}, rappel de votre séance BodyFit aujourd'hui à ${t}. À tout à l'heure !`, en: (n, t) => `Hi ${n}, reminder of your BodyFit session today at ${t}. See you soon!` },
+  trialFollowUp: { pt: n => `Olá ${n}, após a sua sessão de teste na BodyFit, gostaria de agendar uma nova sessão?`, fr: n => `Bonjour ${n}, suite à votre séance d'essai chez BodyFit, souhaitez-vous programmer une nouvelle session ?`, en: n => `Hi ${n}, after your trial session at BodyFit, would you like to schedule a new session?` },
+  renewalAlert: { pt: (n, d) => `Olá ${n}, a sua subscrição BodyFit expira em ${d} dia(s). Contacte-nos para renovar!`, fr: (n, d) => `Bonjour ${n}, votre abonnement BodyFit expire dans ${d} jour(s). Contactez-nous pour renouveler !`, en: (n, d) => `Hi ${n}, your BodyFit subscription expires in ${d} day(s). Contact us to renew!` },
+  lowCredits: { pt: (n, r) => `Olá ${n}, restam-lhe ${r} crédito(s) BodyFit. Pense em renovar o seu pack!`, fr: (n, r) => `Bonjour ${n}, il vous reste ${r} crédit(s) BodyFit. Pensez à renouveler votre pack !`, en: (n, r) => `Hi ${n}, you have ${r} credit(s) left at BodyFit. Consider renewing your pack!` },
+}
+
+export function waMsg(key, lang, ...args) {
+  const t = WA_MSG[key]
+  if (!t) return ''
+  const fn = t[lang] || t['pt']
+  return fn(...args)
+}
+
 export function generateReferralCode(name) {
   const clean = (name || 'BF').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase()

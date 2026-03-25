@@ -1,6 +1,6 @@
 import { supabase } from '../_lib/supabase.js'
 import { sendWhatsApp } from '../_lib/whatsapp.js'
-import { todayStr, tomorrowStr, daysTo, nowHour, dayOfWeek, isWorkday, formatDateFR } from '../_lib/helpers.js'
+import { todayStr, tomorrowStr, daysTo, nowHour, dayOfWeek, isWorkday, formatDateFR, detectLang, getMsg } from '../_lib/helpers.js'
 
 export default async function handler(req, res) {
   // Verify cron secret (Vercel sends this header)
@@ -102,15 +102,9 @@ async function morningBriefing() {
   const lowCredits = (allClients || []).filter(c => c.rem <= 3 && c.sub !== 'premium')
 
   // Build message
+  const ownerLang = process.env.OWNER_LANG || 'fr'
   const bkList = (todayBookings || []).map(b => `  ${b.time_slot} — ${b.client_name}${b.type === 'trial' ? ' (ESSAI)' : ''}`).join('\n')
-
-  const msg = `☀️ *Bonjour ! Briefing BodyFit — ${formatDateFR(today)}*\n\n` +
-    `📅 *${(todayBookings || []).length} séances aujourd'hui :*\n${bkList || '  Aucune réservation'}\n\n` +
-    `⚠️ *Actions urgentes :*\n` +
-    `  • ${expiring.length} contrat${expiring.length > 1 ? 's' : ''} expire${expiring.length > 1 ? 'nt' : ''} cette semaine\n` +
-    `  • ${trialsToFollow.length} essai${trialsToFollow.length > 1 ? 's' : ''} à relancer\n` +
-    `  • ${lowCredits.length} client${lowCredits.length > 1 ? 's' : ''} crédits bas\n\n` +
-    `Bonne journée ! 💪`
+  const msg = getMsg('morningBriefing', ownerLang, formatDateFR(today), bkList, expiring.length, trialsToFollow.length, lowCredits.length)
 
   let sent = false
   if (ownerPhone) {
@@ -135,7 +129,8 @@ async function reminder24h() {
   let sent = 0
   for (const b of bookings) {
     if (!b.client_phone) continue
-    const msg = `Bonjour ${b.client_name || ''} ! 👋\n\nRappel de votre séance EMS demain ${formatDateFR(tomorrow)} à ${b.time_slot} chez BodyFit Campo de Ourique.\n\nÀ demain ! 💪`
+    const lang = detectLang(b.client_phone)
+    const msg = getMsg('reminder24h', lang, b.client_name || '', formatDateFR(tomorrow), b.time_slot)
     const result = await sendWhatsApp(b.client_phone, msg)
     if (result.ok) sent++
   }
@@ -162,7 +157,8 @@ async function reminder2h() {
   let sent = 0
   for (const b of bookings) {
     if (!b.client_phone) continue
-    const msg = `Bonjour ${b.client_name || ''} ! ⏰\n\nOn vous attend dans 2h à ${b.time_slot} chez BodyFit.\n\nÀ tout à l'heure !`
+    const lang = detectLang(b.client_phone)
+    const msg = getMsg('reminder2h', lang, b.client_name || '', b.time_slot)
     const result = await sendWhatsApp(b.client_phone, msg)
     if (result.ok) sent++
   }
@@ -199,7 +195,8 @@ async function detectNoShows() {
 
     // Send no-show follow-up
     if (b.client_phone) {
-      const msg = `Bonjour ${b.client_name || ''}, nous avons remarqué votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre séance ? 😊`
+      const lang = detectLang(b.client_phone)
+      const msg = getMsg('noshow', lang, b.client_name || '')
       await sendWhatsApp(b.client_phone, msg)
     }
   }
@@ -227,7 +224,8 @@ async function trialFollowUp() {
     if (lastAction && daysTo(lastAction, today) < 3) continue
     if (!tr.phone) continue
 
-    const msg = `Bonjour ${tr.name || ''} ! 👋\n\nC'est BodyFit Campo de Ourique. Nous espérons que votre séance d'essai EMS vous a plu !\n\nSouhaitez-vous en discuter ou réserver une nouvelle séance ? On serait ravis de vous revoir ! 💪`
+    const lang = tr.lang || detectLang(tr.phone)
+    const msg = getMsg('trialFollowUp', lang, tr.name || '')
     const result = await sendWhatsApp(tr.phone, msg)
 
     if (result.ok) {
@@ -262,11 +260,12 @@ async function renewalAlert() {
     if (dl < 0 || dl > 14) continue // Only 0-14 days
     if (!c.phone) continue
 
+    const lang = c.lang || detectLang(c.phone)
     let msg
     if (dl <= 3) {
-      msg = `Bonjour ${c.name || ''} ! ⚠️\n\nVotre abonnement BodyFit expire dans ${dl} jour${dl > 1 ? 's' : ''}. Contactez-nous pour renouveler et ne pas perdre vos acquis ! 💪`
+      msg = getMsg('renewalAlert', lang, c.name || '', dl)
     } else {
-      msg = `Bonjour ${c.name || ''} ! 📋\n\nVotre abonnement BodyFit expire le ${formatDateFR(c.end_date)}. Pensez à le renouveler pour continuer votre progression ! 💪`
+      msg = getMsg('renewalSoft', lang, c.name || '', formatDateFR(c.end_date))
     }
 
     const result = await sendWhatsApp(c.phone, msg)
@@ -295,7 +294,8 @@ async function birthdayWish() {
     const [, bm, bd] = c.birth_date.split('-')
     if (bm !== m || bd !== d) continue
 
-    const msg = `Joyeux anniversaire ${c.name || ''} ! 🎂🎉\n\nToute l'équipe BodyFit vous souhaite une magnifique journée !\n\nÀ très bientôt au studio ! 💪`
+    const lang = c.lang || detectLang(c.phone)
+    const msg = getMsg('birthday', lang, c.name || '')
     const result = await sendWhatsApp(c.phone, msg)
     if (result.ok) sent++
   }
@@ -335,7 +335,8 @@ async function reviewRequest() {
     if (!b.client_phone) continue
     if (recentPhones.has(b.client_phone)) continue
 
-    const msg = `Merci pour votre séance aujourd'hui ${b.client_name || ''} ! 💪\n\nSi vous avez 30 secondes, un petit avis Google nous aide énormément :\n${GOOGLE_REVIEW_URL}\n\nMerci et à bientôt ! 🙏`
+    const lang = detectLang(b.client_phone)
+    const msg = getMsg('reviewRequest', lang, b.client_name || '', GOOGLE_REVIEW_URL)
     const result = await sendWhatsApp(b.client_phone, msg)
 
     if (result.ok) {

@@ -65,9 +65,11 @@ CREATE POLICY "Public insert bookings"
   ON bookings FOR INSERT
   WITH CHECK (true);
 
--- Public can update only their own bookings (for cancellation)
-CREATE POLICY "Public update own bookings"
+-- No direct UPDATE for anon — all updates go through cancel_booking RPC (SECURITY DEFINER)
+-- Admin (authenticated) can update directly
+CREATE POLICY "Authenticated update bookings"
   ON bookings FOR UPDATE
+  TO authenticated
   USING (true)
   WITH CHECK (true);
 

@@ -8,7 +8,7 @@ const normalizePhone = (p) => p.trim().replace(/[\s\-().]/g, '')
 const fmtDateShort = (d) => { const dt = new Date(d+'T12:00:00'); return dt.toLocaleDateString('pt-PT', { day:'2-digit', month:'short' }) }
 const fmtDateFull = (d) => {
   const dt = new Date(d+'T12:00:00')
-  const days = ['Domingo','Segunda','Terca','Quarta','Quinta','Sexta','Sabado']
+  const days = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
   const months = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
   return `${days[dt.getDay()]}, ${dt.getDate()} de ${months[dt.getMonth()]}`
 }
@@ -31,7 +31,7 @@ function generateIcsUrl(date, timeSlot, type) {
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT',
     'DTSTART:' + fmt(start), 'DTEND:' + fmt(end),
-    'SUMMARY:BODYFIT EMS ' + (type === 'trial' ? 'Sessao Experimental' : 'Sessao'),
+    'SUMMARY:BODYFIT EMS ' + (type === 'trial' ? 'Sessão Experimental' : 'Sessão'),
     'LOCATION:' + STUDIO_ADDR,
     'DESCRIPTION:Apresente-se 5 min antes. Tel: ' + STUDIO_PHONE,
     'END:VEVENT', 'END:VCALENDAR'
@@ -100,6 +100,8 @@ export default function BookingPublic() {
     return params.get('ref') || ''
   })
   const [waitlistJoined, setWaitlistJoined] = useState(false)
+  const [recurringResults, setRecurringResults] = useState([])
+  const [countryCode, setCountryCode] = useState('+351')
 
   // #9: localStorage auto-identify on mount
   useEffect(() => {
@@ -147,6 +149,7 @@ export default function BookingPublic() {
   // #10: No auto-dismiss — removed the 4s timeout
 
   const go = useCallback((next, direction) => {
+    window.scrollTo(0, 0)
     setDir(direction || 'right')
     setPrevStep(step)
     if (step === 'slots' && next !== 'slots') setWaitlistJoined(false)
@@ -167,14 +170,17 @@ export default function BookingPublic() {
 
   async function handleIdentify(e) {
     e.preventDefault()
-    const normalized = normalizePhone(phone)
-    if (!normalized) return
-    setPhone(normalized); setLoading(true); setError('')
+    const rawPhone = normalizePhone(phone)
+    if (!rawPhone) return
+    // Combine country code + phone number
+    const fullPhone = rawPhone.startsWith('+') ? rawPhone : countryCode + rawPhone.replace(/^0+/, '')
+    setPhone(fullPhone); setLoading(true); setError('')
     try {
       let data = null
-      const attempts = [normalized]
-      if (!normalized.startsWith('+351')) attempts.push('+351' + normalized.replace(/^0+/, ''))
-      if (normalized.startsWith('+351')) attempts.push(normalized.replace(/^\+351/, ''))
+      const attempts = [fullPhone]
+      // Also try without country code and with +351 as fallback
+      if (fullPhone.startsWith(countryCode)) attempts.push(fullPhone.replace(countryCode, ''))
+      if (!fullPhone.startsWith('+351') && countryCode !== '+351') attempts.push('+351' + rawPhone.replace(/^0+/, ''))
       for (const a of attempts) {
         const r = await supabase.from('public_client_booking_view').select('id,name,phone,status,sub,credits,used,bonus,rem,start_date,end_date').eq('phone', a).single()
         if (r.data) {
@@ -194,7 +200,7 @@ export default function BookingPublic() {
         go('dashboard')
       } else {
         setClient(null)
-        await loadBookings(normalized)
+        await loadBookings(fullPhone)
         go('guest')
       }
     } catch {
@@ -214,8 +220,11 @@ export default function BookingPublic() {
     // P0: Credit validation for existing clients (not guests/trials)
     if (client && bookingType === 'normal') {
       const rem = client.rem ?? ((client.credits || 0) - (client.used || 0))
-      if (rem <= 0) {
-        setError('Sem sessoes disponiveis. Contacte o studio para renovar o seu pacote.')
+      const needed = recurring ? recurringWeeks : 1
+      if (rem < needed) {
+        setError(rem <= 0
+          ? 'Sem sessoes disponiveis. Contacte o studio para renovar o seu pacote.'
+          : `Apenas ${rem} sessoes disponiveis (${needed} necessarias para reserva recorrente).`)
         return
       }
     }
@@ -267,13 +276,18 @@ export default function BookingPublic() {
       if (booked) {
         // Create additional recurring bookings for weeks 2 to N
         if (recurring && recurringWeeks > 1) {
+          const results = []
           for (let w = 1; w < recurringWeeks; w++) {
             const futureDate = new Date(selDate + 'T12:00:00')
             futureDate.setDate(futureDate.getDate() + (7 * w))
             const futureDateStr = futureDate.toISOString().split('T')[0]
             // Skip Sundays
-            if (futureDate.getDay() === 0) continue
+            if (futureDate.getDay() === 0) {
+              results.push({ date: futureDateStr, slot: selSlot, success: false })
+              continue
+            }
             const rid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
+            let weekSuccess = false
             const rpcR = await supabase.rpc('book_slot', {
               p_id: rid, p_client_id: client?.id || '', p_client_name: trimName,
               p_client_phone: trimPhone, p_date: futureDateStr, p_time_slot: selSlot,
@@ -281,14 +295,18 @@ export default function BookingPublic() {
             })
             if (rpcR.error) {
               // Fallback to direct insert
-              await supabase.from('bookings').insert({
+              const { error: insErr } = await supabase.from('bookings').insert({
                 id: rid, client_id: client?.id || '', client_name: trimName, client_phone: trimPhone,
                 date: futureDateStr, time_slot: selSlot, type: bookingType, status: 'confirmed',
                 notes: 'Reserva recorrente', created_at: new Date().toISOString(), updated_at: new Date().toISOString()
               })
+              weekSuccess = !insErr
+            } else {
+              weekSuccess = rpcR.data !== 'FULL'
             }
-            // If FULL, silently skip (slot not available that week)
+            results.push({ date: futureDateStr, slot: selSlot, success: weekSuccess })
           }
+          setRecurringResults(results)
         }
         await loadBookings(trimPhone)
         go('success')
@@ -301,6 +319,7 @@ export default function BookingPublic() {
   }
 
   async function handleCancel(bk) {
+    if (!window.confirm('Tem a certeza que quer cancelar esta sessão?')) return
     setLoading(true)
     const { data: result, error: err } = await supabase.rpc('cancel_booking', {
       p_id: bk.id,
@@ -389,7 +408,7 @@ export default function BookingPublic() {
   })
 
   const fullSlots = slotsForDate.filter(slot => {
-    const count = bookingsForDate.filter(b => b.timeSlot === slot).length
+    const count = bookingsForDate.filter(b => b.timeSlot === slot && (b.status === 'confirmed' || b.status === 'completed')).length
     return count >= MAX_MACHINES
   }).filter(slot => {
     // Don't show past full slots for today
@@ -462,8 +481,8 @@ export default function BookingPublic() {
 
   // Step labels for nav
   const stepLabels = client
-    ? { calendar: 'Data', slots: 'Horario', confirm: 'Confirmar' }
-    : { services: 'Servicos', calendar: 'Data', slots: 'Horario', info: 'Dados', confirm: 'Confirmar' }
+    ? { calendar: 'Data', slots: 'Horário', confirm: 'Confirmar' }
+    : { services: 'Serviços', calendar: 'Data', slots: 'Horário', info: 'Dados', confirm: 'Confirmar' }
 
   // Which steps show the nav bar
   const navSteps = client
@@ -524,12 +543,28 @@ export default function BookingPublic() {
             </div>
             <div style={{ background: C.white, borderRadius: 16, padding: 20, border: '1px solid ' + C.bd }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, display: 'block' }}>Telefone</label>
-              {/* #12 & #13: autocomplete and inputMode */}
-              <input type="tel" placeholder="+351 9XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} autoFocus
-                autoComplete="tel" inputMode="tel"
-                style={{ width: '100%', padding: '14px 0', border: 'none', borderBottom: '2px solid ' + C.bd, fontSize: 20, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, outline: 'none', background: 'transparent', color: C.dark, boxSizing: 'border-box', transition: 'border-color .2s', textAlign: 'center', letterSpacing: 2 }}
-                onFocus={e => e.target.style.borderBottomColor = C.dark}
-                onBlur={e => e.target.style.borderBottomColor = C.bd} />
+              <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '2px solid ' + C.bd, transition: 'border-color .2s' }}
+                onFocus={e => e.currentTarget.style.borderBottomColor = C.dark}
+                onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.style.borderBottomColor = C.bd }}>
+                <select value={countryCode} onChange={e => setCountryCode(e.target.value)}
+                  style={{ border: 'none', background: 'transparent', fontSize: 16, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: C.dark, outline: 'none', cursor: 'pointer', padding: '14px 4px 14px 0', appearance: 'none', WebkitAppearance: 'none', minWidth: 72, textAlign: 'right' }}>
+                  <option value="+351">🇵🇹 +351</option>
+                  <option value="+33">🇫🇷 +33</option>
+                  <option value="+34">🇪🇸 +34</option>
+                  <option value="+44">🇬🇧 +44</option>
+                  <option value="+49">🇩🇪 +49</option>
+                  <option value="+39">🇮🇹 +39</option>
+                  <option value="+31">🇳🇱 +31</option>
+                  <option value="+32">🇧🇪 +32</option>
+                  <option value="+41">🇨🇭 +41</option>
+                  <option value="+1">🇺🇸 +1</option>
+                  <option value="+55">🇧🇷 +55</option>
+                  <option value="+352">🇱🇺 +352</option>
+                </select>
+                <input type="tel" placeholder="9XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} autoFocus
+                  autoComplete="tel-national" inputMode="tel"
+                  style={{ flex: 1, padding: '14px 0 14px 8px', border: 'none', fontSize: 20, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, outline: 'none', background: 'transparent', color: C.dark, boxSizing: 'border-box', letterSpacing: 2, minWidth: 0 }} />
+              </div>
             </div>
             {/* #9: Remember me checkbox */}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, cursor: 'pointer', fontSize: 13, color: C.t1 }}>
@@ -1067,9 +1102,16 @@ export default function BookingPublic() {
             <div style={{ fontSize: 13, color: bookingType === 'trial' ? C.wr : C.inf, fontWeight: 600, marginBottom: 32 }}>
               {bookingType === 'trial' ? 'Sessao experimental' : 'Sessao cliente'} &middot; {bookingType === 'trial' ? '15' : '25'} min
             </div>
-            {recurring && recurringWeeks > 1 && (
-              <div style={{ fontSize: 13, color: C.t1, marginBottom: 8 }}>
-                + {recurringWeeks - 1} sessoes agendadas nas proximas semanas
+            {recurring && recurringResults.length > 0 && (
+              <div style={{ textAlign: 'left', marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.t1, marginBottom: 8 }}>Sessões recorrentes:</div>
+                {recurringResults.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '4px 0' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 4, background: r.success ? C.ok : C.er, flexShrink: 0 }} />
+                    <span>{r.date} às {r.slot}</span>
+                    <span style={{ color: r.success ? C.ok : C.er, fontSize: 11 }}>{r.success ? 'Confirmada' : 'Indisponível'}</span>
+                  </div>
+                ))}
               </div>
             )}
             {/* Add to calendar */}
@@ -1088,12 +1130,12 @@ export default function BookingPublic() {
               </div>
             </div>
             {client ? (
-              <button onClick={() => { setDashTab('overview'); setRecurring(false); setRecurringWeeks(4); go('dashboard', 'left') }}
+              <button onClick={() => { setDashTab('overview'); setRecurring(false); setRecurringWeeks(4); setRecurringResults([]); go('dashboard', 'left') }}
                 style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Voltar ao meu espaco
               </button>
             ) : (
-              <button onClick={() => { setStep('identify'); setSelDate(''); setSelSlot(''); setGuestName(''); setPhone(''); setEmail(''); setBookingType(''); setRecurring(false); setRecurringWeeks(4) }}
+              <button onClick={() => { setStep('identify'); setSelDate(''); setSelSlot(''); setGuestName(''); setPhone(''); setEmail(''); setBookingType(''); setRecurring(false); setRecurringWeeks(4); setRecurringResults([]) }}
                 style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Nova marcacao
               </button>

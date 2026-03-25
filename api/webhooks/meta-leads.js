@@ -1,6 +1,6 @@
 import { supabase } from '../_lib/supabase.js'
 import { sendWhatsApp } from '../_lib/whatsapp.js'
-import { todayStr } from '../_lib/helpers.js'
+import { todayStr, detectLang, getMsg } from '../_lib/helpers.js'
 
 export default async function handler(req, res) {
   // Meta webhook verification (GET)
@@ -48,6 +48,7 @@ export default async function handler(req, res) {
 
           const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
           const today = todayStr()
+          const lang = detectLang(phone)
 
           // Insert into Supabase
           await supabase.from('leads').upsert({
@@ -67,14 +68,13 @@ export default async function handler(req, res) {
             birth_date: '',
             nif: '',
             origin: 'Meta Ads',
-            follow_up_status: ''
+            follow_up_status: '',
+            lang
           }, { onConflict: 'id' })
 
           // Send welcome WhatsApp
           if (phone) {
-            await sendWhatsApp(phone,
-              `Bonjour ${name || ''} ! 👋\n\nMerci pour votre intérêt pour BodyFit Campo de Ourique ! 💪\n\nNous allons vous contacter très bientôt pour programmer votre séance d'essai EMS gratuite.\n\nÀ très vite !`
-            )
+            await sendWhatsApp(phone, getMsg('welcomeLead', lang, name || ''))
           }
         }
       }

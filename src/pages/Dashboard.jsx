@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { T } from '../lib/i18n'
 import { LCOL } from '../lib/constants'
-import { daysTo, getDaysInactive, getActiveSuspension, getAdjustedEndDate, waLink, generateSlots } from '../lib/helpers'
+import { daysTo, getDaysInactive, getActiveSuspension, getAdjustedEndDate, waLink, generateSlots, detectLang, waMsg } from '../lib/helpers'
 import Icon from '../components/Icon'
 
 const DAY_NAMES = { fr: ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"], pt: ["Domingo","Segunda","Terca","Quarta","Quinta","Sexta","Sabado"], en: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"] }
@@ -156,7 +156,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {slotBk.length === 0 ? <span style={{ fontSize: 10, color: "var(--t2)", fontStyle: "italic" }}>&mdash;</span> :
                     slotBk.map(b => {
-                      const reminderWa = b.clientPhone ? waLink(b.clientPhone, `Bonjour ${b.clientName || ''}, rappel de votre seance BodyFit aujourd'hui a ${b.timeSlot}. A tout a l'heure !`) : null
+                      const reminderWa = b.clientPhone ? waLink(b.clientPhone, waMsg('todayReminder', detectLang(b.clientPhone), b.clientName || '', b.timeSlot)) : null
                       return <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: slotBk.length > 1 ? 3 : 0 }}>
                         <span style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{b.clientName || "--"}</span>
                         <span className="bg" style={{ background: b.type === "trial" ? "var(--wrg)" : "var(--infg)", color: b.type === "trial" ? "var(--wr)" : "var(--inf)", fontSize: 8 }}>{b.type === "trial" ? t.sessionTrial : t.sessionNormal}</span>
@@ -180,7 +180,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--wr)", padding: "6px 0 2px" }}>{t.trialsToFollow} ({trialsToFollow.length})</div>
           {trialsToFollow.map(tr => {
             const dsc = tr.lastContactDate ? daysTo(tr.lastContactDate, td) : "?"
-            const trWa = tr.phone ? waLink(tr.phone, `Bonjour ${tr.name || ''}, suite a votre seance d'essai chez BodyFit, souhaitez-vous programmer une nouvelle session ?`) : null
+            const trWa = tr.phone ? waLink(tr.phone, waMsg('trialFollowUp', tr.lang || detectLang(tr.phone), tr.name || '')) : null
             return <div key={tr.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr.name}</div>
                 <div style={{ fontSize: 9, color: "var(--t2)" }}>{t.daysSinceContact}: {dsc}{typeof dsc === "number" ? "j" : ""} &middot; {t[tr.followUpStatus] || tr.followUpStatus}</div></div>
@@ -192,7 +192,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
         {expiringWeek.length > 0 && <>
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--er)", padding: "6px 0 2px" }}>{t.expiringThisWeek} ({expiringWeek.length})</div>
           {expiringWeek.map(c => {
-            const ewWa = c.phone ? waLink(c.phone, `Bonjour ${c.name || ''}, votre abonnement BodyFit expire dans ${c.daysLeft} jour(s). Contactez-nous pour renouveler !`) : null
+            const ewWa = c.phone ? waLink(c.phone, waMsg('renewalAlert', c.lang || detectLang(c.phone), c.name || '', c.daysLeft)) : null
             return <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
                 <div style={{ fontSize: 9, color: "var(--t2)" }}>{subLD[c.sub]} &mdash; {c.adjEnd}</div></div>
@@ -205,7 +205,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
         {lowCredits.length > 0 && <>
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--wr)", padding: "6px 0 2px" }}>{t.lowCredits} ({lowCredits.length})</div>
           {lowCredits.map(c => {
-            const lcWa = c.phone ? waLink(c.phone, `Bonjour ${c.name || ''}, il vous reste ${c.rem} credit(s) BodyFit. Pensez a renouveler votre pack !`) : null
+            const lcWa = c.phone ? waLink(c.phone, waMsg('lowCredits', c.lang || detectLang(c.phone), c.name || '', c.rem)) : null
             return <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
                 <div style={{ fontSize: 9, color: "var(--t2)" }}>{c.rem} {t.creditsRemaining}</div></div>
@@ -217,7 +217,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
         {noShows.length > 0 && <>
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--er)", padding: "6px 0 2px" }}>{t.noShowsToday} ({noShows.length})</div>
           {noShows.map(b => {
-            const nsWa = b.clientPhone ? waLink(b.clientPhone, `Bonjour ${b.clientName || ''}, nous avons remarque votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre seance ?`) : null
+            const nsWa = b.clientPhone ? waLink(b.clientPhone, waMsg('noshow', detectLang(b.clientPhone), b.clientName || '')) : null
             return <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.clientName}</div>
                 <div style={{ fontSize: 9, color: "var(--t2)" }}>{b.timeSlot} {b.type === "trial" ? `(${t.sessionTrial})` : ""}</div></div>
