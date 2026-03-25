@@ -1,4 +1,4 @@
-import { SUB } from './constants'
+import { SUB, BUSINESS_HOURS, SLOT_DURATION, MAX_MACHINES, CANCEL_CUTOFF_HOURS } from './constants'
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
 
@@ -59,4 +59,41 @@ export const getAdjustedEndDate = (c) => {
   const d = new Date(c.endDate)
   d.setDate(d.getDate() + extra)
   return d.toISOString().split("T")[0]
+}
+
+export function generateSlots(date) {
+  const day = new Date(date + "T12:00:00").getDay()
+  const hours = BUSINESS_HOURS[day]
+  if (!hours) return []
+  const slots = []
+  const [oh, om] = hours.open.split(":").map(Number)
+  const [ch, cm] = hours.close.split(":").map(Number)
+  let mins = oh * 60 + om
+  const end = ch * 60 + cm
+  while (mins < end) {
+    slots.push(`${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`)
+    mins += SLOT_DURATION
+  }
+  return slots
+}
+
+export function getSlotCounts(bookings, date) {
+  const counts = {}
+  bookings.forEach(b => {
+    if (b.date === date && (b.status === "confirmed" || b.status === "completed")) {
+      counts[b.timeSlot] = (counts[b.timeSlot] || 0) + 1
+    }
+  })
+  return counts
+}
+
+export function canCancel(booking) {
+  const now = new Date()
+  const st = new Date(`${booking.date}T${booking.timeSlot}:00`)
+  return (st - now) > CANCEL_CUTOFF_HOURS * 3600000
+}
+
+export function isSlotAvailable(bookings, date, timeSlot) {
+  const count = bookings.filter(b => b.date === date && b.timeSlot === timeSlot && (b.status === "confirmed" || b.status === "completed")).length
+  return count < MAX_MACHINES
 }

@@ -18,3 +18,17 @@ export const LCOL = {
   converted: "#2D8C5A",
   lost: "#C0392B"
 }
+
+export const BUSINESS_HOURS = {
+  0: null,
+  1: { open: "07:30", close: "20:00" },
+  2: { open: "07:30", close: "20:00" },
+  3: { open: "07:30", close: "20:00" },
+  4: { open: "07:30", close: "20:00" },
+  5: { open: "07:30", close: "20:00" },
+  6: { open: "08:00", close: "13:00" }
+}
+
+export const SLOT_DURATION = 30
+export const MAX_MACHINES = 3
+export const CANCEL_CUTOFF_HOURS = 2

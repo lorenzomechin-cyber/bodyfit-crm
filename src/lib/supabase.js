@@ -71,3 +71,21 @@ export async function sbDeleteAll(table) {
   const res = await supabase.from(table).delete().neq("id", "_none_")
   if (res.error) console.error("deleteAll", table, res.error)
 }
+
+export function dbToBooking(r) {
+  return {
+    id: r.id, clientId: r.client_id, clientName: r.client_name, clientPhone: r.client_phone,
+    date: r.date, timeSlot: r.time_slot, type: r.type, status: r.status,
+    notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at
+  }
+}
+
+export function bookingToDb(b) {
+  return {
+    id: b.id, client_id: b.clientId || "", client_name: b.clientName,
+    client_phone: b.clientPhone || "", date: b.date, time_slot: b.timeSlot,
+    type: b.type || "normal", status: b.status || "confirmed",
+    notes: b.notes || "", created_at: b.createdAt || new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+}

@@ -4,7 +4,7 @@ import { LCOL } from '../lib/constants'
 import { daysTo, getDaysInactive, getActiveSuspension, getAdjustedEndDate } from '../lib/helpers'
 import Icon from '../components/Icon'
 
-export default function Dashboard({ clients, leads, trials, lang, config }) {
+export default function Dashboard({ clients, leads, trials, bookings = [], lang, config }) {
   const t = T[lang]
   const td = new Date().toISOString().split("T")[0]
   const thr = config && config.thresholds ? config.thresholds : { lowCredits: 3, inactiveDays: 14, expiryDays: 30 }
@@ -29,6 +29,7 @@ export default function Dashboard({ clients, leads, trials, lang, config }) {
   }, [clients, leads, thr, td])
 
   const sessToday = useMemo(() => clients.reduce((n, c) => n + (c.sessions || []).filter(s => s.date === td).length, 0), [clients, td])
+  const bookToday = useMemo(() => bookings.filter(b => b.date === td && (b.status === "confirmed" || b.status === "completed")).length, [bookings, td])
 
   const expiring = useMemo(() => clients.filter(c => c.status === "active" && c.endDate).map(c => { const adj = getAdjustedEndDate(c); const dl = daysTo(td, adj); return { ...c, daysLeft: dl, adjEnd: adj } }).filter(c => c.daysLeft > 0 && c.daysLeft <= 30).sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 8), [clients, td])
 
@@ -44,7 +45,7 @@ export default function Dashboard({ clients, leads, trials, lang, config }) {
       <div className="ph"><h2>{t.dashboard}</h2><p>{t.overview} &mdash; {st.tot} {t.totalClients} &middot; {st.lT} {t.totalLeads}</p></div>
 
       <div className="cg">
-        {[{ l: t.activeClients, v: st.ac, c: "sv-ok", s: st.tot + " " + t.totalClients }, { l: t.suspendedClients, v: st.sc, c: "sv-wr" }, { l: t.sessionsToday, v: sessToday, c: "sv-ac" }, { l: t.upcomingRenewals, v: st.rn, c: "sv-er" }, { l: t.lowCredits, v: st.lc, c: "sv-inf" }].map((x, i) =>
+        {[{ l: t.activeClients, v: st.ac, c: "sv-ok", s: st.tot + " " + t.totalClients }, { l: t.suspendedClients, v: st.sc, c: "sv-wr" }, { l: t.sessionsToday, v: sessToday, c: "sv-ac" }, { l: t.todayBookings || "Reservations", v: bookToday, c: "sv-inf" }, { l: t.upcomingRenewals, v: st.rn, c: "sv-er" }, { l: t.lowCredits, v: st.lc, c: "sv-inf" }].map((x, i) =>
           <div key={i} className="cd"><div className="sl">{x.l}</div><div className={"sv " + (x.c || "")}>{x.v}</div>{x.s ? <div className="ss">{x.s}</div> : null}</div>
         )}
       </div>

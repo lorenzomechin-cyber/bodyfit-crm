@@ -73,3 +73,36 @@ td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--bd)}tr:hover t
 .mob{display:none;position:fixed;top:10px;left:10px;z-index:101;padding:7px;background:var(--b2);border:1px solid var(--bd);border-radius:var(--rs);cursor:pointer;color:var(--t0)}
 @media(max-width:1024px){.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mn{margin-left:0}.mob{display:flex!important}.dp{width:100%}}
 @media(max-width:640px){.pg{padding:12px}.cg{grid-template-columns:1fr 1fr}.fg2{grid-template-columns:1fr}.pipe{flex-direction:column}.pcol{flex:none;width:100%}}
+/* Planning */
+.pl-grid{display:grid;gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.pl-cell{background:var(--b2);padding:6px 8px;min-height:52px;font-size:11px;position:relative;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.pl-cell:hover{background:var(--b3)}.pl-cell.now{background:rgba(46,109,164,.04)}
+.pl-time{font-family:var(--fm);font-size:10px;color:var(--t2);font-weight:600;padding:8px 10px;background:var(--b1);display:flex;align-items:center;justify-content:center}
+.pl-hd{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);padding:8px;background:var(--b1);text-align:center}
+.pl-bk{padding:4px 6px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;width:100%;text-align:left;border:none}
+.pl-bk.st-confirmed{background:var(--infg);color:var(--inf);border-left:3px solid var(--inf)}
+.pl-bk.st-completed{background:var(--okg);color:var(--ok);border-left:3px solid var(--ok)}
+.pl-bk.st-noshow{background:var(--erg);color:var(--er);border-left:3px solid var(--er)}
+.pl-bk.st-trial{background:var(--wrg);color:var(--wr);border-left:3px solid var(--wr)}
+.pl-add{color:var(--t2);cursor:pointer;opacity:0;transition:opacity .15s;background:none;border:none;display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.pl-cell:hover .pl-add{opacity:1}
+.wk-cell{text-align:center;padding:4px;cursor:pointer;border-radius:4px;transition:all .15s;font-family:var(--fm);font-size:9px;font-weight:600}
+.wk-cell:hover{transform:scale(1.05)}.wk-cell.f0{background:var(--b1);color:var(--t2)}.wk-cell.f1{background:var(--infg);color:var(--inf)}.wk-cell.f2{background:var(--wrg);color:var(--wr)}.wk-cell.f3{background:var(--okg);color:var(--ok)}
+/* Public booking */
+.bk-page{min-height:100vh;background:var(--b0);display:flex;align-items:flex-start;justify-content:center;padding:20px}
+.bk-card{background:var(--b2);border:1px solid var(--bd);border-radius:var(--r);padding:28px;width:100%;max-width:440px;margin-top:40px}
+.bk-logo{font-family:var(--fm);font-size:22px;font-weight:700;text-align:center;margin-bottom:4px}.bk-logo em{color:var(--ac);font-style:normal}
+.bk-sub{font-size:9px;color:var(--t2);text-align:center;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.bk-step{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.bk-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px}
+.bk-cal-hd{font-size:9px;font-weight:600;color:var(--t2);text-align:center;padding:6px 2px}
+.bk-cal-d{text-align:center;padding:10px 4px;border-radius:var(--rs);font-size:12px;cursor:pointer;transition:all .15s;border:none;background:none;color:var(--t0);font-family:var(--f)}
+.bk-cal-d:hover{background:var(--acg)}.bk-cal-d.today{font-weight:700;box-shadow:inset 0 0 0 1px var(--ac)}
+.bk-cal-d.sel{background:var(--ac);color:#fff}.bk-cal-d.off{opacity:.25;pointer-events:none}
+.bk-cal-d.empty{pointer-events:none}
+.bk-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-bottom:16px}
+.bk-slot{padding:12px 8px;text-align:center;border:1px solid var(--bd);border-radius:var(--rs);cursor:pointer;font-family:var(--fm);font-size:13px;font-weight:600;transition:all .15s;background:var(--b2);color:var(--t0)}
+.bk-slot:hover{border-color:var(--ac);background:var(--acg)}.bk-slot.sel{background:var(--ac);color:#fff;border-color:var(--ac)}
+.bk-my{display:flex;flex-direction:column;gap:8px}.bk-my-i{padding:12px;border:1px solid var(--bd);border-radius:var(--rs);display:flex;justify-content:space-between;align-items:center}
+.bk-my-i.past{opacity:.5}
+@keyframes bkIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.bk-in{animation:bkIn .3s ease forwards}

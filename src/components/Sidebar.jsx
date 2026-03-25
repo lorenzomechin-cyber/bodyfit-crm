@@ -9,6 +9,7 @@ export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, 
     { key: 'clients', icon: 'users', label: t.clients },
     { key: 'leads', icon: 'zap', label: t.leadsMetaTitle, badge: leadCount },
     { key: 'trials', icon: 'user', label: t.trialSessions, badge: trialCount },
+    { key: 'planning', icon: 'cal', label: t.planning },
     { key: 'nutrition', icon: 'heart', label: t.nutrition },
     { key: 'settings', icon: 'gear', label: t.settings },
   ];
