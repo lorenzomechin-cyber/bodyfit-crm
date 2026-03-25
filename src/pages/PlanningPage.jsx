@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { T } from '../lib/i18n'
-import { uid } from '../lib/helpers'
+import { uid, waLink } from '../lib/helpers'
 import { generateSlots, getSlotCounts, isSlotAvailable } from '../lib/helpers'
 import { MAX_MACHINES } from '../lib/constants'
 import Icon from '../components/Icon'
@@ -19,7 +19,7 @@ const dayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]
 const fmtD = (d) => { const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) }
 const fmtShort = (d) => { const dt = new Date(d + "T12:00:00"); return dayNames[dt.getDay()] + " " + dt.getDate() + "/" + String(dt.getMonth() + 1).padStart(2, "0") }
 
-export default function PlanningPage({ bookings, setBookings, clients, lang }) {
+export default function PlanningPage({ bookings, setBookings, clients, lang, trials, setTrials }) {
   const t = T[lang]
   const [view, setView] = useState("day")
   const [sel, setSel] = useState(todayStr)
@@ -97,7 +97,14 @@ export default function PlanningPage({ bookings, setBookings, clients, lang }) {
   }
 
   const updateStatus = (id, status) => {
+    const bk = bookings.find(b => b.id === id)
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
+    if (status === "noshow" && bk?.type === "trial" && setTrials) {
+      setTrials(prev => prev.map(tr => {
+        if (tr.name === bk.clientName || tr.phone === bk.clientPhone) return { ...tr, followUpStatus: "noAnswer", lastActionDate: new Date().toISOString().split("T")[0] }
+        return tr
+      }))
+    }
     setModal(null)
   }
 
@@ -338,10 +345,16 @@ export default function PlanningPage({ bookings, setBookings, clients, lang }) {
               <div className="mf">
                 {bk.status === "confirmed" ? (
                   <>
+                    {bk.clientPhone ? <a href={waLink(bk.clientPhone, `Bonjour ${bk.clientName || ''} ! Rappel de votre séance EMS demain à ${bk.timeSlot} chez BodyFit. À demain ! \u{1F4AA}`)} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="wa" s={11} /> {t.waReminder}</a> : null}
                     <button className="bt bok bsm" onClick={() => updateStatus(bk.id, "completed")}><Icon n="check" s={11} /> {t.markCompleted}</button>
                     <button className="bt bdd bsm" onClick={() => updateStatus(bk.id, "noshow")}><Icon n="alert" s={11} /> {t.markNoshow}</button>
                     <button className="bt bs bsm" onClick={() => cancelBooking(bk.id)}>{t.cancelBooking}</button>
                   </>
+                ) : bk.status === "noshow" && bk.clientPhone ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {statusBadge(bk.status)}
+                    <a href={waLink(bk.clientPhone, `Bonjour ${bk.clientName || ''}, nous avons remarqué votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre séance ? \u{1F60A}`)} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="wa" s={11} /> {t.noShowFollowUp}</a>
+                  </div>
                 ) : (
                   statusBadge(bk.status)
                 )}

@@ -1,7 +1,7 @@
 import { useState, useMemo, Fragment } from 'react'
 import { T } from '../lib/i18n'
 import { SUB, LSTAGES } from '../lib/constants'
-import { uid, daysTo, fmtDate } from '../lib/helpers'
+import { uid, daysTo, fmtDate, waLink } from '../lib/helpers'
 import Icon from '../components/Icon'
 import ImportModal from '../components/ImportModal'
 
@@ -114,6 +114,7 @@ export default function TrialsPage({ trials, setTrials, clients, setClients, lan
               <td style={{ fontSize: 10 }}>{tr.nextCallback ? <span style={{ color: daysTo(new Date().toISOString().split("T")[0], tr.nextCallback) < 0 ? "var(--er)" : "var(--ok)", fontFamily: "var(--fm)", fontSize: 10 }}>{tr.nextCallback}</span> : "\u2014"}</td>
               <td style={{ fontSize: 10, color: "var(--t1)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr.notes || "\u2014"}</td>
               <td><div style={{ display: "flex", gap: 2 }} onClick={e => e.stopPropagation()}>
+                {tr.phone ? <a href={waLink(tr.phone, `Bonjour ${tr.name || ''} ! On vous rappelle votre séance d'essai EMS prévue chez BodyFit Campo de Ourique. On a hâte de vous voir ! \u{1F4AA}`)} target="_blank" rel="noopener" className="bg0" style={{ color: "#25D366", textDecoration: "none" }} title="WhatsApp"><Icon n="wa" s={12} /></a> : null}
                 <button className="bg0" style={{ color: "var(--ok)" }} onClick={() => { setSel(tr); setShowConvert(true); setConvSub('12m'); setConvStart(new Date().toISOString().split('T')[0]) }} title={t.transferToClient}><Icon n="user" s={12} /></button>
               </div></td>
             </tr>
@@ -128,7 +129,7 @@ export default function TrialsPage({ trials, setTrials, clients, setClients, lan
         <div className="dps"><div className="dst">{t.contactInfo}</div>
           <div className="fg" style={{ marginBottom: 8 }}><label className="fl">{t.name} *</label><input className="fi" value={sel.name || ""} onChange={e => updateField(sel.id, "name", e.target.value)} /></div>
           <div className="fg" style={{ marginBottom: 8 }}><label className="fl">{t.email}</label><input className="fi" value={sel.email || ""} onChange={e => updateField(sel.id, "email", e.target.value)} /></div>
-          <div className="fg" style={{ marginBottom: 8 }}><label className="fl">{t.phone}</label><input className="fi" value={sel.phone || ""} onChange={e => updateField(sel.id, "phone", e.target.value)} /></div>
+          <div className="fg" style={{ marginBottom: 8 }}><label className="fl">{t.phone}</label><div style={{ display: "flex", gap: 4 }}><input className="fi" style={{ flex: 1 }} value={sel.phone || ""} onChange={e => updateField(sel.id, "phone", e.target.value)} />{sel.phone ? <a href={waLink(sel.phone, `Bonjour ${sel.name || ''} ! On vous rappelle votre séance d'essai EMS prévue chez BodyFit Campo de Ourique. On a hâte de vous voir ! \u{1F4AA}`)} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="wa" s={11} /></a> : null}</div></div>
           <div className="fg" style={{ marginBottom: 8 }}><label className="fl">{t.trialDate}</label><input className="fi" type="date" value={sel.date || ""} onChange={e => updateField(sel.id, "date", e.target.value)} /></div>
           <div className="fg" style={{ marginBottom: 8 }}><label className="fl">{t.source}</label><select className="fsl" value={sel.source || ""} onChange={e => updateField(sel.id, "source", e.target.value)}><option value="">&mdash;</option>{srcOpts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
           <div className="fg"><label className="fl">{t.leadStatus}</label><select className="fsl" value={sel.stage || ""} onChange={e => updateField(sel.id, "stage", e.target.value)}>{stOpts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>

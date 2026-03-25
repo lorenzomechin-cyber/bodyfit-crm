@@ -97,3 +97,9 @@ export function isSlotAvailable(bookings, date, timeSlot) {
   const count = bookings.filter(b => b.date === date && b.timeSlot === timeSlot && (b.status === "confirmed" || b.status === "completed")).length
   return count < MAX_MACHINES
 }
+
+export function waLink(phone, message) {
+  if (!phone) return null
+  const clean = phone.replace(/[^+\d]/g, '')
+  return `https://wa.me/${clean.replace('+', '')}?text=${encodeURIComponent(message)}`
+}

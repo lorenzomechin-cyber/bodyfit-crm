@@ -84,6 +84,8 @@ export const T = {
     sessionNormal:"Normale",sessionTrial:"Essai",closedDay:"Fermé",noBookings:"Aucune réservation",
     markCompleted:"Effectuée",markNoshow:"Absent",selectClient:"Sélectionner client",manualEntry:"Saisie manuelle",
     bookingType:"Type",bookingNotes:"Notes",weekTotal:"Total semaine",
+    waReminder:"Rappel WhatsApp",noShowsToday:"No-shows aujourd'hui",noShowFollowUp:"Relancer",noNoShows:"Aucun absent aujourd'hui",sendWa:"WhatsApp",
+    lifecycleTrial:"Essai",lifecycleRegistered:"Inscrit",lifecycleActive:"Actif",lifecycleRenewal:"Renouvellement",lifecycleLoyal:"Fidèle",lifecycle:"Parcours client",
   },
   pt: {
     login:"Entrar",logout:"Sair",username:"Utilizador",password:"Palavra-passe",loginError:"Credenciais inválidas",
@@ -170,6 +172,8 @@ export const T = {
     sessionNormal:"Normal",sessionTrial:"Teste",closedDay:"Fechado",noBookings:"Sem reservas",
     markCompleted:"Realizada",markNoshow:"Ausente",selectClient:"Selecionar cliente",manualEntry:"Entrada manual",
     bookingType:"Tipo",bookingNotes:"Notas",weekTotal:"Total semana",
+    waReminder:"Lembrete WhatsApp",noShowsToday:"Ausências hoje",noShowFollowUp:"Relançar",noNoShows:"Nenhuma ausência hoje",sendWa:"WhatsApp",
+    lifecycleTrial:"Teste",lifecycleRegistered:"Inscrito",lifecycleActive:"Ativo",lifecycleRenewal:"Renovação",lifecycleLoyal:"Fiel",lifecycle:"Percurso cliente",
   },
   en: {
     login:"Login",logout:"Logout",username:"Username",password:"Password",loginError:"Invalid credentials",
@@ -256,5 +260,7 @@ export const T = {
     sessionNormal:"Normal",sessionTrial:"Trial",closedDay:"Closed",noBookings:"No bookings",
     markCompleted:"Completed",markNoshow:"No-show",selectClient:"Select client",manualEntry:"Manual entry",
     bookingType:"Type",bookingNotes:"Notes",weekTotal:"Week total",
+    waReminder:"WhatsApp reminder",noShowsToday:"No-shows today",noShowFollowUp:"Follow up",noNoShows:"No absences today",sendWa:"WhatsApp",
+    lifecycleTrial:"Trial",lifecycleRegistered:"Registered",lifecycleActive:"Active",lifecycleRenewal:"Renewal",lifecycleLoyal:"Loyal",lifecycle:"Client journey",
   }
 }

@@ -155,7 +155,7 @@ export default function App() {
             {pg === "clients" && <ClientsPage clients={clients} setClients={sClients} trials={trials} setTrials={sTrials} lang={lang} role={user.role} />}
             {pg === "leads" && <LeadsMetaPage leads={leads} setLeads={sLeads} trials={trials} setTrials={sTrials} lang={lang} role={user.role} />}
             {pg === "trials" && <TrialsPage trials={trials} setTrials={sTrials} clients={clients} setClients={sClients} lang={lang} role={user.role} />}
-            {pg === "planning" && <PlanningPage bookings={bookings} setBookings={sBookings} clients={clients} lang={lang} />}
+            {pg === "planning" && <PlanningPage bookings={bookings} setBookings={sBookings} clients={clients} lang={lang} trials={trials} setTrials={sTrials} />}
             {pg === "nutrition" && <NutritionPage lang={lang} />}
             {pg === "settings" && <Settings lang={lang} sLang={sLang} user={user} config={config} sConfig={sConfig} clients={clients} leads={leads} trials={trials} sClients={sClients} sLeads={sLeads} sTrials={sTrials} onLoad={() => { sClients(mkClients()); sLeads(mkLeads()); sTrials(mkTrials()) }} onReset={async () => { sClients([]); sLeads([]); sTrials([]); await sbDeleteAll("clients"); await sbDeleteAll("leads"); await sbDeleteAll("trials") }} />}
           </Suspense>

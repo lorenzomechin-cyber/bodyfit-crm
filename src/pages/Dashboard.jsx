@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { T } from '../lib/i18n'
 import { LCOL } from '../lib/constants'
-import { daysTo, getDaysInactive, getActiveSuspension, getAdjustedEndDate } from '../lib/helpers'
+import { daysTo, getDaysInactive, getActiveSuspension, getAdjustedEndDate, waLink } from '../lib/helpers'
 import Icon from '../components/Icon'
 
 export default function Dashboard({ clients, leads, trials, bookings = [], lang, config }) {
@@ -36,6 +36,8 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
   const inactive14 = useMemo(() => clients.filter(c => c.status === "active" && !getActiveSuspension(c)).map(c => ({ ...c, daysInact: getDaysInactive(c) })).filter(c => c.daysInact >= 14).sort((a, b) => b.daysInact - a.daysInact).slice(0, 8), [clients])
 
   const latestLeads = useMemo(() => [...leads].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 6), [leads])
+
+  const noShows = useMemo(() => bookings.filter(b => b.date === td && b.status === "noshow"), [bookings, td])
 
   const stgL = { notContacted: t.notContacted, sessionBooked: t.sessionBooked, sessionDone: t.sessionDone, converted: t.converted, lost: t.lost }
   const subLD = { "12m": t.months12, "6m": t.months6, "3m": t.months3, p10: t.pack10, p15: t.pack15, p20: t.pack20, premium: t.premium }
@@ -81,6 +83,19 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
                 <div style={{ fontSize: 9, color: "var(--t2)" }}>{l.phone || l.email}</div></div>
               <span className="bg" style={{ background: LCOL[l.stage] + "14", color: LCOL[l.stage], fontSize: 8 }}>{stgL[l.stage]}</span>
             </div>)}
+        </div>
+
+        <div className="cd">
+          <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon n="alert" s={13} />{t.noShowsToday} ({noShows.length})</div>
+          {noShows.length === 0 ? <p style={{ fontSize: 11, color: "var(--t2)", padding: "12px 0", textAlign: "center" }}>{t.noNoShows}</p> :
+            noShows.map(b => {
+              const nsWa = b.clientPhone ? waLink(b.clientPhone, `Bonjour ${b.clientName || ''}, nous avons remarqué votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre séance ? \u{1F60A}`) : null
+              return <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px solid var(--bd)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.clientName}</div>
+                  <div style={{ fontSize: 9, color: "var(--t2)" }}>{b.timeSlot} {b.type === "trial" ? `(${t.sessionTrial})` : ""}</div></div>
+                {nsWa ? <a href={nsWa} target="_blank" rel="noopener" style={{ color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 600 }}><Icon n="wa" s={12} />{t.noShowFollowUp}</a> : null}
+              </div>
+            })}
         </div>
 
         <div className="cd"><div className="cht">{t.funnelOverview}</div><div className="fnl">

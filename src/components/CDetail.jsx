@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { T } from '../lib/i18n'
 import { SUB, STATUSES } from '../lib/constants'
-import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate } from '../lib/helpers'
+import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate, waLink } from '../lib/helpers'
 import Icon from './Icon'
 
 export default function CDetail({ client: c, onClose, onUpdate, lang }) {
@@ -24,6 +24,28 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
   const activeSusp = getActiveSuspension(c)
   const adjustedEnd = getAdjustedEndDate(c)
   const lpInfo = getLastPaymentMonth(c)
+
+  const lifecycleStages = [
+    { k: "trial", l: t.lifecycleTrial },
+    { k: "registered", l: t.lifecycleRegistered },
+    { k: "active", l: t.lifecycleActive },
+    { k: "renewal", l: t.lifecycleRenewal },
+    { k: "loyal", l: t.lifecycleLoyal }
+  ]
+  const getLifecycleStage = () => {
+    if (c.status === "inactive") return "registered"
+    if ((c.renewalHistory || []).length >= 2) return "loyal"
+    if (c.endDate && daysTo(new Date().toISOString().split("T")[0], getAdjustedEndDate(c)) <= 30 && daysTo(new Date().toISOString().split("T")[0], getAdjustedEndDate(c)) > 0) return "renewal"
+    if (c.status === "active") return "active"
+    if (c.startDate) return "registered"
+    return "trial"
+  }
+  const lcStage = getLifecycleStage()
+  const lcIdx = lifecycleStages.findIndex(s => s.k === lcStage)
+  const isInactive = c.status === "inactive"
+
+  const waGenMsg = `Bonjour ${c.name || ''} ! C'est BodyFit Campo de Ourique \u{1F4AA}`
+  const waUrl = waLink(c.phone, waGenMsg)
 
   function up(field, value) { onUpdate({ ...c, [field]: value }) }
 
@@ -86,6 +108,25 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
         <button className="bg0" onClick={onClose}><Icon n="x" s={15} /></button>
       </div>
 
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--bd)" }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: "var(--t2)", marginBottom: 4 }}>{t.lifecycle}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+          {lifecycleStages.map((st2, i) => {
+            const isActive2 = i <= lcIdx
+            const isCurrent = i === lcIdx
+            return <div key={st2.k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                {i > 0 && <div style={{ flex: 1, height: 2, background: isActive2 && !isInactive ? "var(--ac)" : "var(--bd)" }} />}
+                <div style={{ width: isCurrent ? 12 : 8, height: isCurrent ? 12 : 8, borderRadius: "50%", background: isInactive ? "var(--t2)" : isActive2 ? "var(--ac)" : "var(--bd)", border: isCurrent && !isInactive ? "2px solid var(--ac2)" : "none", flexShrink: 0 }} />
+                {i < lifecycleStages.length - 1 && <div style={{ flex: 1, height: 2, background: isActive2 && i < lcIdx && !isInactive ? "var(--ac)" : "var(--bd)" }} />}
+              </div>
+              <span style={{ fontSize: 7, fontWeight: isCurrent ? 700 : 400, color: isInactive ? "var(--t2)" : isCurrent ? "var(--ac2)" : isActive2 ? "var(--t1)" : "var(--t2)", textAlign: "center", lineHeight: 1.1 }}>{st2.l}</span>
+            </div>
+          })}
+        </div>
+        {c.status === "suspended" && <div style={{ marginTop: 4, fontSize: 8, fontWeight: 700, color: "var(--wr)", textAlign: "center", background: "var(--wrg)", borderRadius: 4, padding: "2px 6px", display: "inline-block" }}>{t.suspended}</div>}
+      </div>
+
       {activeSusp ? <div className="susp-bar"><Icon n="pause" s={14} /><div style={{ flex: 1 }}><p style={{ fontSize: 11, fontWeight: 600, color: "var(--wr)" }}>{t.suspendActive}</p><span style={{ fontSize: 9, color: "var(--t2)" }}>{activeSusp.from} - {activeSusp.to || "?"} - {activeSusp.reason}</span></div></div> : null}
 
       <div style={{ display: "flex", borderBottom: "1px solid var(--bd)" }}>
@@ -97,7 +138,7 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
       {tab === "info" ? <div>
         <div className="dps"><div className="dst">{t.contactInfo}</div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.name}</label><input className="fi" value={c.name || ""} onChange={e => up("name", e.target.value)} /></div>
-          <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.phone}</label><div style={{ display: "flex", gap: 4 }}><input className="fi" style={{ flex: 1 }} value={c.phone || ""} onChange={e => up("phone", e.target.value)} />{c.phone ? <a href={"tel:" + c.phone} className="bt bs bsm" style={{ textDecoration: "none" }}><Icon n="phone" s={11} /></a> : null}</div></div>
+          <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.phone}</label><div style={{ display: "flex", gap: 4 }}><input className="fi" style={{ flex: 1 }} value={c.phone || ""} onChange={e => up("phone", e.target.value)} />{c.phone ? <a href={"tel:" + c.phone} className="bt bs bsm" style={{ textDecoration: "none" }}><Icon n="phone" s={11} /></a> : null}{waUrl ? <a href={waUrl} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="wa" s={11} /></a> : null}</div></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.email}</label><div style={{ display: "flex", gap: 4 }}><input className="fi" style={{ flex: 1 }} value={c.email || ""} onChange={e => up("email", e.target.value)} />{c.email ? <a href={"mailto:" + c.email} className="bt bs bsm" style={{ textDecoration: "none" }}><Icon n="mail" s={11} /></a> : null}</div></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.birthDate}</label><input className="fi" type="date" value={c.birthDate || ""} onChange={e => up("birthDate", e.target.value)} /></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.gender}</label><select className="fsl" value={c.gender || ""} onChange={e => up("gender", e.target.value)}><option value="male">{t.male}</option><option value="female">{t.female}</option></select></div>
