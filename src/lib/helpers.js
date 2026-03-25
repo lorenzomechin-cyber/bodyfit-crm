@@ -1,0 +1,62 @@
+import { SUB } from './constants'
+
+export const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
+
+export const daysTo = (a, b) => Math.ceil((new Date(b) - new Date(a)) / 864e5)
+
+export const fmtDate = (d) => d ? new Date(d).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" }) : "\u2014"
+
+export const calcAge = (bd) => {
+  if (!bd) return null
+  const t = new Date(), b = new Date(bd)
+  let a = t.getFullYear() - b.getFullYear()
+  if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--
+  return a > 0 && a < 120 ? a : null
+}
+
+export const getLastSession = (c) => {
+  if (!c.sessions?.length) return null
+  return [...c.sessions].sort((a, b) => b.date.localeCompare(a.date))[0].date
+}
+
+export const getDaysInactive = (c) => {
+  const ls = getLastSession(c)
+  if (!ls) return 999
+  return daysTo(ls, new Date().toISOString().split("T")[0])
+}
+
+export const getFrequency = (c) => {
+  if (!c.sessions?.length || !c.startDate) return 0
+  const months = Math.max(1, daysTo(c.startDate, new Date().toISOString().split("T")[0]) / 30)
+  return Math.round(c.sessions.length / months * 10) / 10
+}
+
+export const getActiveSuspension = (c) => c.suspensionHistory?.find(s => {
+  const td = new Date().toISOString().split("T")[0]
+  return s.from <= td && (!s.to || s.to >= td)
+})
+
+export const getLastPaymentMonth = (c) => {
+  if (!c.startDate || !c.sub || c.sub === "premium") return null
+  const sub = SUB[c.sub]
+  if (!sub?.mo) return null
+  const start = new Date(c.startDate)
+  const lm = new Date(start.getFullYear(), start.getMonth() + sub.mo - 1, 1)
+  const now = new Date()
+  const nowM = now.getFullYear() * 12 + now.getMonth()
+  const lmM = lm.getFullYear() * 12 + lm.getMonth()
+  return {
+    month: lm.getMonth(), year: lm.getFullYear(),
+    label: lm.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
+    isThisMonth: nowM === lmM, isNextMonth: lmM === nowM + 1, isPast: lmM < nowM, monthsLeft: lmM - nowM
+  }
+}
+
+export const getAdjustedEndDate = (c) => {
+  if (!c.endDate || !c.suspensionHistory?.length) return c.endDate
+  let extra = 0
+  c.suspensionHistory.forEach(s => { extra += (s.daysAdded || 0) })
+  const d = new Date(c.endDate)
+  d.setDate(d.getDate() + extra)
+  return d.toISOString().split("T")[0]
+}
