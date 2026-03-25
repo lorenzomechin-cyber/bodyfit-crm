@@ -306,7 +306,7 @@ async function birthdayWish() {
 // ── Agent: Review request ────────────────────────────────────────
 async function reviewRequest() {
   const today = todayStr()
-  const GOOGLE_REVIEW_URL = 'https://g.page/r/YOUR_GOOGLE_PLACE_ID/review'
+  const GOOGLE_REVIEW_URL = 'https://g.page/r/CZtvzg-F9CswEAE/review'
 
   // Get today's completed bookings
   const { data: completedBookings } = await supabase
