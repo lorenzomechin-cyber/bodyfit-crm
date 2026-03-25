@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { T } from '../lib/i18n'
 import { SUB, STATUSES } from '../lib/constants'
 import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate, waLink } from '../lib/helpers'
 import Icon from './Icon'
 
-export default function CDetail({ client: c, onClose, onUpdate, lang }) {
+function normPhone(p) { return (p || "").replace(/[^0-9]/g, "").slice(-9) }
+
+export default function CDetail({ client: c, onClose, onUpdate, lang, bookings = [] }) {
   const t = T[lang]
   const [tab, sTab] = useState("info")
   const [suspForm, setSuspForm] = useState({ from: "", to: "", reason: "" })
@@ -24,6 +26,30 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
   const activeSusp = getActiveSuspension(c)
   const adjustedEnd = getAdjustedEndDate(c)
   const lpInfo = getLastPaymentMonth(c)
+  const td = new Date().toISOString().split("T")[0]
+
+  const lastVisitColor = daysInact < 7 ? "var(--ok)" : daysInact <= 14 ? "var(--wr)" : "var(--er)"
+  const lastVisitBg = daysInact < 7 ? "var(--okg)" : daysInact <= 14 ? "var(--wrg)" : "var(--erg)"
+
+  // Bookings for this client
+  const clientBookings = useMemo(() => {
+    const cn = (c.name || "").toLowerCase().trim()
+    const cp = normPhone(c.phone)
+    return bookings.filter(b => {
+      if (cn && (b.clientName || "").toLowerCase().trim() === cn) return true
+      if (cp && normPhone(b.clientPhone) === cp) return true
+      return false
+    }).sort((a, b) => (b.date + b.timeSlot).localeCompare(a.date + a.timeSlot))
+  }, [bookings, c.name, c.phone])
+
+  const upcomingBk = useMemo(() => clientBookings.filter(b => b.date >= td && b.status === "confirmed"), [clientBookings, td])
+  const pastBk = useMemo(() => clientBookings.filter(b => b.date < td || b.status === "completed" || b.status === "noshow" || b.status === "cancelled"), [clientBookings, td])
+  const bkStats = useMemo(() => {
+    const total = clientBookings.length
+    const noshows = clientBookings.filter(b => b.status === "noshow").length
+    const rate = total > 0 ? Math.round(noshows / total * 100) : 0
+    return { total, noshows, rate }
+  }, [clientBookings])
 
   const lifecycleStages = [
     { k: "trial", l: t.lifecycleTrial },
@@ -50,8 +76,8 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
   function up(field, value) { onUpdate({ ...c, [field]: value }) }
 
   function doAddSession() {
-    const td = new Date().toISOString().split("T")[0]
-    onUpdate({ ...c, sessions: (c.sessions || []).concat([{ id: uid(), date: td }]), used: (c.used || 0) + 1, rem: Math.max((c.rem || 0) - 1, 0) })
+    const td2 = new Date().toISOString().split("T")[0]
+    onUpdate({ ...c, sessions: (c.sessions || []).concat([{ id: uid(), date: td2 }]), used: (c.used || 0) + 1, rem: Math.max((c.rem || 0) - 1, 0) })
   }
 
   function doDeleteSession(sid) {
@@ -88,7 +114,11 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
   if (c.startDate) { timelineItems.push({ id: "reg", date: c.startDate, type: "created", icon: "user", bg: "var(--acg)", fg: "var(--ac)", text: t.timelineCreated, canDel: false }) }
   timelineItems.sort((a, b) => b.date.localeCompare(a.date))
 
-  const tabDefs = [{ k: "info", l: t.personalInfo, i: "user" }, { k: "history", l: t.timeline, i: "activity" }, { k: "renewals", l: t.renewals, i: "repeat" }]
+  const tabDefs = [{ k: "info", l: t.personalInfo, i: "user" }, { k: "history", l: t.timeline, i: "activity" }, { k: "renewals", l: t.renewals, i: "repeat" }, { k: "bookings", l: t.planning || "Reservations", i: "cal" }]
+
+  const statusLabel = { confirmed: t.bookingConfirmed, completed: t.bookingCompleted, noshow: t.bookingNoshow, cancelled: t.bookingCancelled }
+  const statusBg = { confirmed: "var(--acg)", completed: "var(--okg)", noshow: "var(--erg)", cancelled: "var(--bd)" }
+  const statusFg = { confirmed: "var(--ac2)", completed: "var(--ok)", noshow: "var(--er)", cancelled: "var(--t2)" }
 
   return (
     <div className="dp">
@@ -140,6 +170,16 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.name}</label><input className="fi" value={c.name || ""} onChange={e => up("name", e.target.value)} /></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.phone}</label><div style={{ display: "flex", gap: 4 }}><input className="fi" style={{ flex: 1 }} value={c.phone || ""} onChange={e => up("phone", e.target.value)} />{c.phone ? <a href={"tel:" + c.phone} className="bt bs bsm" style={{ textDecoration: "none" }}><Icon n="phone" s={11} /></a> : null}{waUrl ? <a href={waUrl} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="wa" s={11} /></a> : null}</div></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.email}</label><div style={{ display: "flex", gap: 4 }}><input className="fi" style={{ flex: 1 }} value={c.email || ""} onChange={e => up("email", e.target.value)} />{c.email ? <a href={"mailto:" + c.email} className="bt bs bsm" style={{ textDecoration: "none" }}><Icon n="mail" s={11} /></a> : null}</div></div>
+        </div>
+        {/* Last visit highlighted card */}
+        <div style={{ margin: "0 10px 6px", padding: "8px 12px", borderRadius: 6, background: lastVisitBg, border: `1px solid ${lastVisitColor}22`, display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon n="clock" s={16} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: lastVisitColor }}>{t.lastVisit}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--t0)" }}>{lastSess ? <>{fmtDate(lastSess)} <span style={{ fontSize: 10, color: lastVisitColor }}>({daysInact} {t.daysAgo})</span></> : "--"}</div>
+          </div>
+        </div>
+        <div className="dps">
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.birthDate}</label><input className="fi" type="date" value={c.birthDate || ""} onChange={e => up("birthDate", e.target.value)} /></div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.gender}</label><select className="fsl" value={c.gender || ""} onChange={e => up("gender", e.target.value)}><option value="male">{t.male}</option><option value="female">{t.female}</option></select></div>
           <div className="fg"><label className="fl">{t.source}</label><select className="fsl" value={c.source || ""} onChange={e => up("source", e.target.value)}><option value="">--</option>{srcOptions.map(x => <option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></div>
@@ -188,6 +228,37 @@ export default function CDetail({ client: c, onClose, onUpdate, lang }) {
             <span>{fmtDate(r.date)}</span><span>{subLabels[r.type]}</span><span className={"bg bg-" + (r.status === "renewed" ? "ok" : r.status === "pending" ? "wr" : "inf")}>{t[r.status]}</span>
           </div>
         )) : <p style={{ color: "var(--t2)", fontSize: 11, textAlign: "center", padding: 16 }}>{t.noResults}</p>}
+      </div> : null}
+
+      {tab === "bookings" ? <div className="dps">
+        {/* Stats row */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <div style={{ flex: 1, textAlign: "center", padding: "6px 4px", background: "var(--infg)", borderRadius: 6 }}><div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--fm)", color: "var(--inf)" }}>{bkStats.total}</div><div style={{ fontSize: 8, color: "var(--t2)" }}>{t.totalSessions}</div></div>
+          <div style={{ flex: 1, textAlign: "center", padding: "6px 4px", background: "var(--erg)", borderRadius: 6 }}><div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--fm)", color: "var(--er)" }}>{bkStats.noshows}</div><div style={{ fontSize: 8, color: "var(--t2)" }}>{t.bookingNoshow}</div></div>
+          <div style={{ flex: 1, textAlign: "center", padding: "6px 4px", background: bkStats.rate > 20 ? "var(--erg)" : "var(--okg)", borderRadius: 6 }}><div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--fm)", color: bkStats.rate > 20 ? "var(--er)" : "var(--ok)" }}>{bkStats.rate}%</div><div style={{ fontSize: 8, color: "var(--t2)" }}>{t.noShowRate}</div></div>
+        </div>
+
+        {/* Upcoming */}
+        <div className="dst">{t.upcomingBookings}</div>
+        {upcomingBk.length === 0 ? <p style={{ fontSize: 11, color: "var(--t2)", textAlign: "center", padding: 10 }}>{t.noUpcoming}</p> :
+          upcomingBk.map(b => <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px solid var(--bd)" }}>
+            <div style={{ fontFamily: "var(--fm)", fontSize: 10, fontWeight: 700, color: "var(--ac2)", width: 70, flexShrink: 0 }}>{b.date}<br /><span style={{ color: "var(--t1)" }}>{b.timeSlot}</span></div>
+            <div style={{ flex: 1 }}>
+              <span className="bg" style={{ background: b.type === "trial" ? "var(--wrg)" : "var(--infg)", color: b.type === "trial" ? "var(--wr)" : "var(--inf)", fontSize: 8 }}>{b.type === "trial" ? t.sessionTrial : t.sessionNormal}</span>
+            </div>
+            <span className="bg" style={{ background: statusBg[b.status], color: statusFg[b.status], fontSize: 8 }}>{statusLabel[b.status] || b.status}</span>
+          </div>)}
+
+        {/* History */}
+        <div className="dst" style={{ marginTop: 10 }}>{t.bookingHistory}</div>
+        {pastBk.length === 0 ? <p style={{ fontSize: 11, color: "var(--t2)", textAlign: "center", padding: 10 }}>{t.noResults}</p> :
+          pastBk.slice(0, 30).map(b => <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
+            <div style={{ fontFamily: "var(--fm)", fontSize: 10, color: "var(--t2)", width: 70, flexShrink: 0 }}>{b.date}<br />{b.timeSlot}</div>
+            <div style={{ flex: 1 }}>
+              <span className="bg" style={{ background: b.type === "trial" ? "var(--wrg)" : "var(--infg)", color: b.type === "trial" ? "var(--wr)" : "var(--inf)", fontSize: 8 }}>{b.type === "trial" ? t.sessionTrial : t.sessionNormal}</span>
+            </div>
+            <span className="bg" style={{ background: statusBg[b.status], color: statusFg[b.status], fontSize: 8 }}>{statusLabel[b.status] || b.status}</span>
+          </div>)}
       </div> : null}
     </div>
   )

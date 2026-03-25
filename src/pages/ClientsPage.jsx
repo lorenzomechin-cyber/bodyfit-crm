@@ -7,7 +7,7 @@ import Icon from '../components/Icon'
 import CDetail from '../components/CDetail'
 import ImportModal from '../components/ImportModal'
 
-export default function ClientsPage({ clients, setClients, trials, setTrials, lang, role }) {
+export default function ClientsPage({ clients, setClients, trials, setTrials, bookings = [], lang, role }) {
   const t = T[lang]
   const [searchC, setSearchC] = useState("")
   const [fSC, setFSC] = useState("all")
@@ -94,7 +94,7 @@ export default function ClientsPage({ clients, setClients, trials, setTrials, la
         </tbody></table></div>
         {totPg > 1 ? <div className="tpg"><span>{t.showing} {pgC * pp + 1}-{Math.min((pgC + 1) * pp, filt.length)} {t.of} {filt.length}</span><div style={{ display: "flex", gap: 5 }}><button className="bt bs bsm" disabled={pgC === 0} onClick={() => setPgC(pgC - 1)}>{t.previous}</button><button className="bt bs bsm" disabled={pgC >= totPg - 1} onClick={() => setPgC(pgC + 1)}>{t.next}</button></div></div> : null}
       </div>
-      {selC ? <CDetail client={selC} onClose={() => setSelC(null)} onUpdate={updateClient} lang={lang} /> : null}
+      {selC ? <CDetail client={selC} onClose={() => setSelC(null)} onUpdate={updateClient} lang={lang} bookings={bookings} /> : null}
       {showImportC ? <ImportModal onImport={handleImport} onClose={() => setShowImportC(false)} existingItems={clients} lang={lang} mode="clients" /> : null}
     </div>
   )

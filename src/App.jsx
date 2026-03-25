@@ -40,7 +40,10 @@ export default function App() {
         const c = await sbLoadAll("clients", dbToClient); sClients(c.length ? c : mkClients())
         const l = await sbLoadAll("leads", dbToLead); sLeads(l.length ? l : mkLeads())
         const tr = await sbLoadAll("trials", dbToTrial); sTrials(tr.length ? tr : mkTrials())
-        const bk = await sbLoadAll("bookings", dbToBooking); sBookings(bk)
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const minDate = thirtyDaysAgo.toISOString().split("T")[0]
+        const bkRes = await supabase.from("bookings").select("*").gte("date", minDate)
+        sBookings((bkRes.data || []).map(dbToBooking))
         const cfgRes = await supabase.from("config").select("data").eq("id", "main").single()
         if (cfgRes.data && cfgRes.data.data) sConfig(cfgRes.data.data)
       } catch (e) {
@@ -93,7 +96,9 @@ export default function App() {
   useEffect(() => {
     if (!init) return
     debouncedSync("bookings", async () => {
-      for (let i = 0; i < bookings.length; i++) { await sbUpsert("bookings", bookingToDb(bookings[i])) }
+      if (bookings.length > 0) {
+        await supabase.from("bookings").upsert(bookings.map(bookingToDb), { onConflict: "id" })
+      }
     })
   }, [bookings, init])
 
@@ -102,8 +107,10 @@ export default function App() {
     if (!init) return
     const iv = setInterval(async () => {
       try {
-        const bk = await sbLoadAll("bookings", dbToBooking)
-        sBookings(bk)
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const minDate = thirtyDaysAgo.toISOString().split("T")[0]
+        const bkRes = await supabase.from("bookings").select("*").gte("date", minDate)
+        sBookings((bkRes.data || []).map(dbToBooking))
       } catch (e) { console.error("Booking poll error", e) }
     }, 30000)
     return () => clearInterval(iv)
@@ -151,8 +158,8 @@ export default function App() {
         <Sidebar page={pg} setPage={sPg} user={user} onLogout={logout} lang={lang} setLang={sLang} leadCount={lN} trialCount={trN} isOpen={sbO} onClose={() => sSbO(false)} />
         <main className="mn"><div className="pg">
           <Suspense fallback={fallback}>
-            {pg === "dashboard" && <Dashboard clients={clients} leads={leads} trials={trials} bookings={bookings} lang={lang} config={config} />}
-            {pg === "clients" && <ClientsPage clients={clients} setClients={sClients} trials={trials} setTrials={sTrials} lang={lang} role={user.role} />}
+            {pg === "dashboard" && <Dashboard clients={clients} leads={leads} trials={trials} bookings={bookings} lang={lang} config={config} user={user} />}
+            {pg === "clients" && <ClientsPage clients={clients} setClients={sClients} trials={trials} setTrials={sTrials} bookings={bookings} lang={lang} role={user.role} />}
             {pg === "leads" && <LeadsMetaPage leads={leads} setLeads={sLeads} trials={trials} setTrials={sTrials} lang={lang} role={user.role} />}
             {pg === "trials" && <TrialsPage trials={trials} setTrials={sTrials} clients={clients} setClients={sClients} lang={lang} role={user.role} />}
             {pg === "planning" && <PlanningPage bookings={bookings} setBookings={sBookings} clients={clients} lang={lang} trials={trials} setTrials={sTrials} />}

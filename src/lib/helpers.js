@@ -103,3 +103,14 @@ export function waLink(phone, message) {
   const clean = phone.replace(/[^+\d]/g, '')
   return `https://wa.me/${clean.replace('+', '')}?text=${encodeURIComponent(message)}`
 }
+
+export function getAvailabilityForDate(bookings, date) {
+  const slots = generateSlots(date)
+  if (slots.length === 0) return { total: 0, booked: 0, available: 0 }
+  const total = slots.length * MAX_MACHINES
+  let booked = 0
+  slots.forEach(slot => {
+    booked += bookings.filter(b => b.date === date && b.timeSlot === slot && (b.status === "confirmed" || b.status === "completed")).length
+  })
+  return { total, booked, available: total - booked }
+}

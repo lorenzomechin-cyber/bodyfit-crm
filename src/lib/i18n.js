@@ -86,6 +86,9 @@ export const T = {
     bookingType:"Type",bookingNotes:"Notes",weekTotal:"Total semaine",
     waReminder:"Rappel WhatsApp",noShowsToday:"No-shows aujourd'hui",noShowFollowUp:"Relancer",noNoShows:"Aucun absent aujourd'hui",sendWa:"WhatsApp",
     lifecycleTrial:"Essai",lifecycleRegistered:"Inscrit",lifecycleActive:"Actif",lifecycleRenewal:"Renouvellement",lifecycleLoyal:"Fidèle",lifecycle:"Parcours client",
+    reschedule:"Reprogrammer",markAllCompleted:"Tout marquer effectue",filterAll:"Tous",filterNormal:"Normal",filterTrial:"Essai",
+    noshowCount:"absences ce mois",quickRebook:"Meme heure semaine proch.",lastSpot:"Dernier!",spotsLeft:"places",
+    goodMorning:"Bonjour",todaySessions:"Séances aujourd'hui",urgentActions:"Actions urgentes",trialsToFollow:"Essais à relancer",expiringThisWeek:"Expire cette semaine",upcomingBookings:"Prochaines séances",bookingHistory:"Historique réservations",noShowRate:"Taux d'absence",lastVisit:"Dernière visite",daysAgo:"jours",noUpcoming:"Aucune séance prévue",totalSessions:"Total séances",
   },
   pt: {
     login:"Entrar",logout:"Sair",username:"Utilizador",password:"Palavra-passe",loginError:"Credenciais inválidas",
@@ -174,6 +177,9 @@ export const T = {
     bookingType:"Tipo",bookingNotes:"Notas",weekTotal:"Total semana",
     waReminder:"Lembrete WhatsApp",noShowsToday:"Ausências hoje",noShowFollowUp:"Relançar",noNoShows:"Nenhuma ausência hoje",sendWa:"WhatsApp",
     lifecycleTrial:"Teste",lifecycleRegistered:"Inscrito",lifecycleActive:"Ativo",lifecycleRenewal:"Renovação",lifecycleLoyal:"Fiel",lifecycle:"Percurso cliente",
+    reschedule:"Reprogramar",markAllCompleted:"Marcar tudo realizado",filterAll:"Todos",filterNormal:"Normal",filterTrial:"Teste",
+    noshowCount:"ausencias este mes",quickRebook:"Mesma hora proxima sem.",lastSpot:"Ultimo!",spotsLeft:"lugares",
+    goodMorning:"Bom dia",todaySessions:"Sessões hoje",urgentActions:"Ações urgentes",trialsToFollow:"Testes a relançar",expiringThisWeek:"Expira esta semana",upcomingBookings:"Próximas sessões",bookingHistory:"Histórico reservas",noShowRate:"Taxa de ausência",lastVisit:"Última visita",daysAgo:"dias",noUpcoming:"Nenhuma sessão prevista",totalSessions:"Total sessões",
   },
   en: {
     login:"Login",logout:"Logout",username:"Username",password:"Password",loginError:"Invalid credentials",
@@ -262,5 +268,8 @@ export const T = {
     bookingType:"Type",bookingNotes:"Notes",weekTotal:"Week total",
     waReminder:"WhatsApp reminder",noShowsToday:"No-shows today",noShowFollowUp:"Follow up",noNoShows:"No absences today",sendWa:"WhatsApp",
     lifecycleTrial:"Trial",lifecycleRegistered:"Registered",lifecycleActive:"Active",lifecycleRenewal:"Renewal",lifecycleLoyal:"Loyal",lifecycle:"Client journey",
+    reschedule:"Reschedule",markAllCompleted:"Mark all completed",filterAll:"All",filterNormal:"Normal",filterTrial:"Trial",
+    noshowCount:"no-shows this month",quickRebook:"Same time next week",lastSpot:"Last spot!",spotsLeft:"spots left",
+    goodMorning:"Good morning",todaySessions:"Sessions today",urgentActions:"Urgent actions",trialsToFollow:"Trials to follow up",expiringThisWeek:"Expiring this week",upcomingBookings:"Upcoming sessions",bookingHistory:"Booking history",noShowRate:"No-show rate",lastVisit:"Last visit",daysAgo:"days",noUpcoming:"No upcoming sessions",totalSessions:"Total sessions",
   }
 }
