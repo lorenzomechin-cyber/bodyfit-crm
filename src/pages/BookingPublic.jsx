@@ -113,7 +113,7 @@ export default function BookingPublic() {
       if (!normalized.startsWith('+351')) attempts.push('+351' + normalized.replace(/^0+/, ''))
       if (normalized.startsWith('+351')) attempts.push(normalized.replace(/^\+351/, ''))
       for (const a of attempts) {
-        const r = await supabase.from('clients').select('id,name,phone,status,sub,credits,used,bonus,rem,start_date,end_date').eq('phone', a).single()
+        const r = await supabase.from('public_client_booking_view').select('id,name,phone,status,sub,credits,used,bonus,rem,start_date,end_date').eq('phone', a).single()
         if (r.data) {
           data = {
             id: r.data.id, name: r.data.name, phone: r.data.phone, status: r.data.status,
@@ -147,7 +147,9 @@ export default function BookingPublic() {
 
   async function loadBookings(ph) {
     const p = ph || phone
-    const all = await supabase.from('bookings').select('*').in('status', ['confirmed','completed'])
+    const td = new Date(); td.setDate(td.getDate() - 1)
+    const minDate = td.toISOString().split('T')[0]
+    const all = await supabase.from('bookings').select('*').in('status', ['confirmed','completed']).gte('date', minDate)
     setAllBookings((all.data || []).map(dbToBooking))
     if (p) {
       const my = await supabase.from('bookings').select('*').eq('client_phone', p)
@@ -166,7 +168,7 @@ export default function BookingPublic() {
       if (!normalized.startsWith('+351')) attempts.push('+351' + normalized.replace(/^0+/, ''))
       if (normalized.startsWith('+351')) attempts.push(normalized.replace(/^\+351/, ''))
       for (const a of attempts) {
-        const r = await supabase.from('clients').select('id,name,phone,status,sub,credits,used,bonus,rem,start_date,end_date').eq('phone', a).single()
+        const r = await supabase.from('public_client_booking_view').select('id,name,phone,status,sub,credits,used,bonus,rem,start_date,end_date').eq('phone', a).single()
         if (r.data) {
           data = {
             id: r.data.id, name: r.data.name, phone: r.data.phone, status: r.data.status,
@@ -266,10 +268,27 @@ export default function BookingPublic() {
   }
 
   async function handleCancel(bk) {
-    const st = new Date(bk.date + 'T' + bk.timeSlot + ':00')
-    if (st - new Date() <= CANCEL_CUTOFF_HOURS * 3600000) { setError('Cancelamento impossivel a menos de 2h da sessao.'); return }
     setLoading(true)
-    await supabase.from('bookings').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', bk.id)
+    const { data: result, error: err } = await supabase.rpc('cancel_booking', {
+      p_id: bk.id,
+      p_client_phone: phone
+    })
+    if (err) {
+      // RPC not available — fallback to direct update (pre-validated client-side)
+      await supabase.from('bookings').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', bk.id).eq('client_phone', phone)
+    } else if (result === 'TOO_LATE') {
+      setError('Cancelamento impossivel a menos de 2h da sessao.')
+      setLoading(false)
+      return
+    } else if (result === 'UNAUTHORIZED') {
+      setError('Nao autorizado.')
+      setLoading(false)
+      return
+    } else if (result !== 'OK') {
+      setError('Erro ao cancelar.')
+      setLoading(false)
+      return
+    }
     await loadBookings(phone); setLoading(false)
   }
 
@@ -375,7 +394,7 @@ export default function BookingPublic() {
     : { services: 20, calendar: 40, slots: 60, info: 80, confirm: 100 }
 
   // ─── STYLES ───
-  const C = { bg: '#F5F3EF', bg2: '#EDEAE4', white: '#FFFFFF', dark: '#1A1714', t1: '#6B6560', t2: '#9C958E', bd: '#DED9D0', ok: '#2D8C5A', wr: '#C47F17', er: '#C0392B', inf: '#2E6DA4' }
+  const C = { bg: '#F5F3EF', bg2: '#EDEAE4', white: '#FFFFFF', dark: '#1A1714', t1: '#6B6560', t2: '#736B63', bd: '#DED9D0', ok: '#2D8C5A', wr: '#C47F17', er: '#C0392B', inf: '#2E6DA4' }
 
   // #1: Determine back step for nav
   function getBackStep() {

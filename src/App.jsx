@@ -48,7 +48,6 @@ export default function App() {
         if (cfgRes.data && cfgRes.data.data) sConfig(cfgRes.data.data)
       } catch (e) {
         console.error("Load error", e)
-        sClients(mkClients()); sLeads(mkLeads()); sTrials(mkTrials())
       }
       try { const u = localStorage.getItem("bf-user"); if (u) sUser(JSON.parse(u)) } catch (e) {}
       try { const lg = localStorage.getItem("bf-lang"); if (lg) sLang(lg) } catch (e) {}
@@ -68,7 +67,7 @@ export default function App() {
       const existing = await sbLoadAll("clients", dbToClient)
       const currentIds = new Set(clients.map(c => c.id))
       existing.forEach(e => { if (!currentIds.has(e.id)) sbDelete("clients", e.id) })
-      for (let i = 0; i < clients.length; i++) { await sbUpsert("clients", clientToDb(clients[i])) }
+      if (clients.length > 0) await supabase.from("clients").upsert(clients.map(clientToDb), { onConflict: "id" })
     })
   }, [clients, init])
 
@@ -78,7 +77,7 @@ export default function App() {
       const existing = await sbLoadAll("leads", dbToLead)
       const currentIds = new Set(leads.map(l => l.id))
       existing.forEach(e => { if (!currentIds.has(e.id)) sbDelete("leads", e.id) })
-      for (let i = 0; i < leads.length; i++) { await sbUpsert("leads", leadToDb(leads[i])) }
+      if (leads.length > 0) await supabase.from("leads").upsert(leads.map(leadToDb), { onConflict: "id" })
     })
   }, [leads, init])
 
@@ -88,7 +87,7 @@ export default function App() {
       const existing = await sbLoadAll("trials", dbToTrial)
       const currentIds = new Set(trials.map(t2 => t2.id))
       existing.forEach(e => { if (!currentIds.has(e.id)) sbDelete("trials", e.id) })
-      for (let i = 0; i < trials.length; i++) { await sbUpsert("trials", trialToDb(trials[i])) }
+      if (trials.length > 0) await supabase.from("trials").upsert(trials.map(trialToDb), { onConflict: "id" })
     })
   }, [trials, init])
 
@@ -110,7 +109,24 @@ export default function App() {
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         const minDate = thirtyDaysAgo.toISOString().split("T")[0]
         const bkRes = await supabase.from("bookings").select("*").gte("date", minDate)
-        sBookings((bkRes.data || []).map(dbToBooking))
+        const remote = (bkRes.data || []).map(dbToBooking)
+        sBookings(prev => {
+          const remoteMap = new Map(remote.map(b => [b.id, b]))
+          const localMap = new Map(prev.map(b => [b.id, b]))
+          // Merge: keep whichever has newer updatedAt, add new remote ones
+          const merged = new Map()
+          for (const [id, rb] of remoteMap) {
+            const lb = localMap.get(id)
+            if (!lb) { merged.set(id, rb) }
+            else if ((rb.updatedAt || '') >= (lb.updatedAt || '')) { merged.set(id, rb) }
+            else { merged.set(id, lb) }
+          }
+          // Keep local-only bookings (not yet synced)
+          for (const [id, lb] of localMap) {
+            if (!merged.has(id)) merged.set(id, lb)
+          }
+          return [...merged.values()]
+        })
       } catch (e) { console.error("Booking poll error", e) }
     }, 30000)
     return () => clearInterval(iv)

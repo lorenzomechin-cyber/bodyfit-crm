@@ -1,6 +1,6 @@
 import { SUB, BUSINESS_HOURS, SLOT_DURATION, MAX_MACHINES, CANCEL_CUTOFF_HOURS } from './constants'
 
-export const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
+export const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
 
 export const daysTo = (a, b) => Math.ceil((new Date(b) - new Date(a)) / 864e5)
 

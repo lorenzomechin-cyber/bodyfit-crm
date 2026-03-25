@@ -116,3 +116,43 @@ CREATE INDEX IF NOT EXISTS idx_bookings_date_slot ON bookings(date, time_slot);
 -- SELECT * FROM pg_policies WHERE tablename = 'bookings';
 -- SELECT * FROM pg_policies WHERE tablename = 'clients';
 -- SELECT * FROM pg_indexes WHERE tablename = 'bookings';
+
+
+-- ═══════════════════════════════════════════════════════════
+-- P0 SECURITY FIXES
+-- ═══════════════════════════════════════════════════════════
+
+-- ─── 6. SAFE CANCELLATION RPC ───
+-- Safe cancellation: verifies phone ownership before cancelling
+CREATE OR REPLACE FUNCTION cancel_booking(p_id text, p_client_phone text, p_cutoff_hours int DEFAULT 2)
+RETURNS text AS $$
+DECLARE
+  bk record;
+  session_time timestamptz;
+BEGIN
+  SELECT * INTO bk FROM bookings WHERE id = p_id;
+  IF NOT FOUND THEN RETURN 'NOT_FOUND'; END IF;
+  IF bk.client_phone != p_client_phone THEN RETURN 'UNAUTHORIZED'; END IF;
+  IF bk.status != 'confirmed' THEN RETURN 'INVALID_STATUS'; END IF;
+  session_time := (bk.date || 'T' || bk.time_slot || ':00')::timestamp;
+  IF session_time - now() <= (p_cutoff_hours || ' hours')::interval THEN RETURN 'TOO_LATE'; END IF;
+  UPDATE bookings SET status = 'cancelled', updated_at = now()::text WHERE id = p_id;
+  RETURN 'OK';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION cancel_booking TO anon;
+GRANT EXECUTE ON FUNCTION cancel_booking TO authenticated;
+
+
+-- ─── 7. RESTRICTED VIEW FOR PUBLIC BOOKING PAGE ───
+-- Restricted view for public booking page
+CREATE OR REPLACE VIEW public_client_booking_view AS
+SELECT id, name, phone, status, sub, credits, used, bonus, rem, start_date, end_date
+FROM clients;
+
+-- Grant anon access to the view only
+GRANT SELECT ON public_client_booking_view TO anon;
+
+-- Revoke direct anon SELECT on clients table
+REVOKE SELECT ON clients FROM anon;
