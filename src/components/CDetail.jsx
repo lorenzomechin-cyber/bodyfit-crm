@@ -1,16 +1,25 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { T } from '../lib/i18n'
 import { SUB, STATUSES } from '../lib/constants'
-import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate, waLink } from '../lib/helpers'
+import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getActiveSuspension, getLastPaymentMonth, getAdjustedEndDate, waLink, generateReferralCode } from '../lib/helpers'
 import Icon from './Icon'
 
 function normPhone(p) { return (p || "").replace(/[^0-9]/g, "").slice(-9) }
 
-export default function CDetail({ client: c, onClose, onUpdate, lang, bookings = [] }) {
+export default function CDetail({ client: c, onClose, onUpdate, lang, bookings = [], clients = [] }) {
   const t = T[lang]
   const [tab, sTab] = useState("info")
   const [suspForm, setSuspForm] = useState({ from: "", to: "", reason: "" })
   const [renForm, setRenForm] = useState({ date: new Date().toISOString().split("T")[0], type: "12m", status: "renewed" })
+  const [refCopied, setRefCopied] = useState(false)
+
+  // Auto-generate referral code if client doesn't have one
+  useEffect(() => {
+    if (c && !c.referralCode) {
+      const code = generateReferralCode(c.name)
+      onUpdate({ ...c, referralCode: code })
+    }
+  }, [c?.id])
 
   if (!c) return null
 
@@ -198,6 +207,19 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
         <div className="dps"><div className="dst"><Icon n="heart" s={10} /> {t.medicalInfo}</div>
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.contraindications}</label><input className="fi" value={c.contraindications || ""} onChange={e => up("contraindications", e.target.value)} /></div>
           <div className="fg"><label className="fl">{t.medicalNotes}</label><textarea className="fta" style={{ minHeight: 36 }} value={c.medicalNotes || ""} onChange={e => up("medicalNotes", e.target.value)} /></div>
+        </div>
+        <div className="dps"><div className="dst"><Icon n="user" s={10} /> {t.referral}</div>
+          <div style={{ fontSize: 9, color: "var(--ac2)", fontWeight: 600, marginBottom: 6 }}>{t.shareReferral}</div>
+          <div style={{ fontSize: 8, color: "var(--t2)", marginBottom: 4 }}>{t.referralReward}</div>
+          <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 8 }}>
+            <input className="fi" readOnly value={c.referralCode ? `https://bodyfitcrm.vercel.app/#book?ref=${c.referralCode}` : ""} style={{ flex: 1, fontSize: 9 }} />
+            <button className="bt bs bsm" onClick={() => { navigator.clipboard.writeText(`https://bodyfitcrm.vercel.app/#book?ref=${c.referralCode}`); setRefCopied(true); setTimeout(() => setRefCopied(false), 2000) }} style={{ whiteSpace: "nowrap" }}>{refCopied ? t.copied : t.copyLink}</button>
+          </div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
+            <div style={{ textAlign: "center", flex: 1, padding: "6px 4px", background: "var(--infg)", borderRadius: 6 }}><div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--fm)", color: "var(--inf)" }}>{c.referralCount || 0}</div><div style={{ fontSize: 8, color: "var(--t2)" }}>{t.referralCount}</div></div>
+            <div style={{ textAlign: "center", flex: 1, padding: "6px 4px", background: "var(--okg)", borderRadius: 6 }}><div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--fm)", color: "var(--ok)" }}>{c.referralBonus || 0}</div><div style={{ fontSize: 8, color: "var(--t2)" }}>{t.referralBonus}</div></div>
+          </div>
+          {c.referredBy ? <div style={{ fontSize: 10, color: "var(--t1)", padding: "4px 0" }}>{t.referredBy}: {(() => { const ref = clients.find(cl => cl.referralCode === c.referredBy); return ref ? ref.name : c.referredBy })()}</div> : null}
         </div>
         {c.suspensionHistory && c.suspensionHistory.length > 0 ? <div className="dps"><div className="dst">{t.suspensions}</div>{c.suspensionHistory.map(s => <div key={s.id} style={{ fontSize: 10, color: "var(--t1)", padding: "3px 0", borderBottom: "1px solid var(--bd)" }}>{s.from} - {s.to || "?"} - {s.reason} <span style={{ color: "var(--wr)" }}>+{s.daysAdded}j</span></div>)}</div> : null}
         <div className="dps"><div className="dst">{t.addSuspension}</div>

@@ -32,3 +32,4 @@ export const BUSINESS_HOURS = {
 export const SLOT_DURATION = 30
 export const MAX_MACHINES = 3
 export const CANCEL_CUTOFF_HOURS = 2
+export const GOOGLE_REVIEW_URL = 'https://g.page/r/YOUR_GOOGLE_PLACE_ID/review'

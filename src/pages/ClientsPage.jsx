@@ -94,7 +94,7 @@ export default function ClientsPage({ clients, setClients, trials, setTrials, bo
         </tbody></table></div>
         {totPg > 1 ? <div className="tpg"><span>{t.showing} {pgC * pp + 1}-{Math.min((pgC + 1) * pp, filt.length)} {t.of} {filt.length}</span><div style={{ display: "flex", gap: 5 }}><button className="bt bs bsm" disabled={pgC === 0} onClick={() => setPgC(pgC - 1)}>{t.previous}</button><button className="bt bs bsm" disabled={pgC >= totPg - 1} onClick={() => setPgC(pgC + 1)}>{t.next}</button></div></div> : null}
       </div>
-      {selC ? <CDetail client={selC} onClose={() => setSelC(null)} onUpdate={updateClient} lang={lang} bookings={bookings} /> : null}
+      {selC ? <CDetail client={selC} onClose={() => setSelC(null)} onUpdate={updateClient} lang={lang} bookings={bookings} clients={clients} /> : null}
       {showImportC ? <ImportModal onImport={handleImport} onClose={() => setShowImportC(false)} existingItems={clients} lang={lang} mode="clients" /> : null}
     </div>
   )

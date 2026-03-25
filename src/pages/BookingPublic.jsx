@@ -45,17 +45,16 @@ const SUB_LABELS = { '12m':'12 meses','6m':'6 meses','3m':'3 meses','p10':'Pack 
 function AnimNum({ value, color }) {
   const [display, setDisplay] = useState(0)
   useEffect(() => {
-    if (value === display) return
-    const diff = value - display
-    const step = Math.ceil(Math.abs(diff) / 12)
+    let cancelled = false
+    const step = Math.max(1, Math.ceil(Math.abs(value - display) / 12))
     const iv = setInterval(() => {
+      if (cancelled) return
       setDisplay(prev => {
-        const next = diff > 0 ? Math.min(prev + step, value) : Math.max(prev - step, value)
-        if (next === value) clearInterval(iv)
-        return next
+        if (prev === value) { clearInterval(iv); return prev }
+        return prev < value ? Math.min(prev + step, value) : Math.max(prev - step, value)
       })
     }, 30)
-    return () => clearInterval(iv)
+    return () => { cancelled = true; clearInterval(iv) }
   }, [value])
   return <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 28, fontWeight: 700, color }}>{display}</span>
 }
@@ -93,6 +92,14 @@ export default function BookingPublic() {
   const [dashTab, setDashTab] = useState('overview') // overview | history
   const [showAllHistory, setShowAllHistory] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [recurringWeeks, setRecurringWeeks] = useState(4)
+  const [refCopied, setRefCopied] = useState(false)
+  const [referrer, setReferrer] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
+    return params.get('ref') || ''
+  })
+  const [waitlistJoined, setWaitlistJoined] = useState(false)
 
   // #9: localStorage auto-identify on mount
   useEffect(() => {
@@ -142,6 +149,7 @@ export default function BookingPublic() {
   const go = useCallback((next, direction) => {
     setDir(direction || 'right')
     setPrevStep(step)
+    if (step === 'slots' && next !== 'slots') setWaitlistJoined(false)
     setStep(next)
   }, [step])
 
@@ -232,14 +240,14 @@ export default function BookingPublic() {
       const rpcResult = await supabase.rpc('book_slot', {
         p_id: id, p_client_id: client?.id || '', p_client_name: trimName,
         p_client_phone: trimPhone, p_date: selDate, p_time_slot: selSlot,
-        p_type: bookingType, p_notes: !client ? 'Novo prospecto' : ''
+        p_type: bookingType, p_notes: [!client ? 'Novo prospecto' : '', referrer ? 'Ref: ' + referrer : ''].filter(Boolean).join(' | ')
       })
       if (rpcResult.error) {
         // RPC not available — fallback to direct insert (pre-checked above)
         const { error: err } = await supabase.from('bookings').insert({
           id, client_id: client?.id || '', client_name: trimName, client_phone: trimPhone,
           date: selDate, time_slot: selSlot, type: bookingType, status: 'confirmed',
-          notes: !client ? 'Novo prospecto' : '', created_at: ts, updated_at: ts
+          notes: [!client ? 'Novo prospecto' : '', referrer ? 'Ref: ' + referrer : ''].filter(Boolean).join(' | '), created_at: ts, updated_at: ts
         })
         if (err) {
           // #11: differentiate insert error
@@ -257,6 +265,31 @@ export default function BookingPublic() {
       }
 
       if (booked) {
+        // Create additional recurring bookings for weeks 2 to N
+        if (recurring && recurringWeeks > 1) {
+          for (let w = 1; w < recurringWeeks; w++) {
+            const futureDate = new Date(selDate + 'T12:00:00')
+            futureDate.setDate(futureDate.getDate() + (7 * w))
+            const futureDateStr = futureDate.toISOString().split('T')[0]
+            // Skip Sundays
+            if (futureDate.getDay() === 0) continue
+            const rid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
+            const rpcR = await supabase.rpc('book_slot', {
+              p_id: rid, p_client_id: client?.id || '', p_client_name: trimName,
+              p_client_phone: trimPhone, p_date: futureDateStr, p_time_slot: selSlot,
+              p_type: bookingType, p_notes: 'Reserva recorrente'
+            })
+            if (rpcR.error) {
+              // Fallback to direct insert
+              await supabase.from('bookings').insert({
+                id: rid, client_id: client?.id || '', client_name: trimName, client_phone: trimPhone,
+                date: futureDateStr, time_slot: selSlot, type: bookingType, status: 'confirmed',
+                notes: 'Reserva recorrente', created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+              })
+            }
+            // If FULL, silently skip (slot not available that week)
+          }
+        }
         await loadBookings(trimPhone)
         go('success')
       }
@@ -352,6 +385,19 @@ export default function BookingPublic() {
     const count = bookingsForDate.filter(b => b.timeSlot === slot && (b.status === 'confirmed' || b.status === 'completed')).length
     if (count >= MAX_MACHINES) return false
     if (selDate === today) { const [h, m] = slot.split(':').map(Number); const s = new Date(); s.setHours(h, m, 0, 0); if (s <= now) return false }
+    return true
+  })
+
+  const fullSlots = slotsForDate.filter(slot => {
+    const count = bookingsForDate.filter(b => b.timeSlot === slot).length
+    return count >= MAX_MACHINES
+  }).filter(slot => {
+    // Don't show past full slots for today
+    if (selDate === todayStr()) {
+      const [h, m] = slot.split(':').map(Number)
+      const st = new Date(); st.setHours(h, m, 0, 0)
+      if (st <= new Date()) return false
+    }
     return true
   })
 
@@ -535,7 +581,7 @@ export default function BookingPublic() {
         )}
 
         {/* ══════ CLIENT DASHBOARD ══════ */}
-        {step === 'dashboard' && client && (
+        {step === 'dashboard' && client && (<>
           <div style={{ paddingTop: 20 }}>
             {/* Welcome */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
@@ -569,6 +615,15 @@ export default function BookingPublic() {
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}>
                   Repetir proxima semana
                 </button>
+              </div>
+            )}
+
+            {/* Skeleton loading */}
+            {!client.credits && client.credits !== 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                {[0,1].map(i => (
+                  <div key={i} style={{ background: C.white, borderRadius: 16, padding: 18, border: '1px solid ' + C.bd, height: 120, animation: 'pulse 1.5s ease infinite' }} />
+                ))}
               </div>
             )}
 
@@ -696,7 +751,31 @@ export default function BookingPublic() {
               </div>
             )}
           </div>
-        )}
+
+          {/* Referral */}
+          <div style={{ background: C.white, borderRadius: 16, border: '1px solid ' + C.bd, padding: '18px', marginTop: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Convide um amigo</div>
+            <div style={{ fontSize: 12, color: C.t1, marginBottom: 12 }}>Partilhe o seu link e ganhe bonus quando o seu amigo experimentar.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, padding: '10px 12px', background: C.bg, borderRadius: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: C.t1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {window.location.origin + '/#book?ref=' + (client?.id || '')}
+              </div>
+              <button onClick={() => {
+                navigator.clipboard.writeText(window.location.origin + '/#book?ref=' + (client?.id || ''))
+                setRefCopied(true)
+                setTimeout(() => setRefCopied(false), 2000)
+              }} style={{ padding: '10px 16px', background: C.dark, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                {refCopied ? 'Copie!' : 'Copiar'}
+              </button>
+            </div>
+            {/* WhatsApp share */}
+            <a href={'https://wa.me/?text=' + encodeURIComponent('Experimenta o BODYFIT EMS! Marca a tua sessao gratuita aqui: ' + window.location.origin + '/#book?ref=' + (client?.id || ''))}
+              target="_blank" rel="noopener"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, padding: '10px', background: '#25D366', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
+              Partilhar no WhatsApp
+            </a>
+          </div>
+        </>)}
 
         {/* ══════ SERVICES (only for guests) ══════ */}
         {step === 'services' && (
@@ -742,8 +821,10 @@ export default function BookingPublic() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <button onClick={() => setCalMonth(p => p.m === 0 ? { y: p.y-1, m: 11 } : { y: p.y, m: p.m-1 })}
-                style={{ width: 40, height: 40, borderRadius: 10, border: '1px solid ' + C.bd, background: C.white, cursor: 'pointer', fontSize: 18, color: C.dark, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&lsaquo;</button>
+              {(() => { const n = new Date(); const isPastMonth = calMonth.y === n.getFullYear() && calMonth.m === n.getMonth(); return (
+              <button disabled={isPastMonth} onClick={() => setCalMonth(p => p.m === 0 ? { y: p.y-1, m: 11 } : { y: p.y, m: p.m-1 })}
+                style={{ width: 40, height: 40, borderRadius: 10, border: '1px solid ' + C.bd, background: C.white, cursor: isPastMonth ? 'default' : 'pointer', fontSize: 18, color: C.dark, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isPastMonth ? 0.3 : 1, pointerEvents: isPastMonth ? 'none' : 'auto' }}>&lsaquo;</button>
+              ) })()}
               <span style={{ fontWeight: 700, fontSize: 16 }}>{monthNames[calMonth.m]} {calMonth.y}</span>
               <button onClick={() => setCalMonth(p => p.m === 11 ? { y: p.y+1, m: 0 } : { y: p.y, m: p.m+1 })}
                 style={{ width: 40, height: 40, borderRadius: 10, border: '1px solid ' + C.bd, background: C.white, cursor: 'pointer', fontSize: 18, color: C.dark, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&rsaquo;</button>
@@ -771,7 +852,7 @@ export default function BookingPublic() {
                         await loadBookings(phone)
                         go('slots')
                       }}
-                      style={{ textAlign: 'center', padding: '10px 0 14px', borderRadius: 12, fontSize: 14, fontWeight: isToday ? 700 : 400, cursor: off ? 'default' : 'pointer', border: 'none', fontFamily: 'inherit', background: isToday ? C.dark : 'transparent', color: isToday ? '#fff' : off ? '#D5D0C9' : C.dark, transition: 'all .15s', position: 'relative' }}
+                      style={{ textAlign: 'center', padding: '10px 0 14px', borderRadius: 12, fontSize: 14, fontWeight: isToday ? 700 : 400, cursor: off ? 'default' : 'pointer', border: 'none', fontFamily: 'inherit', background: isToday ? C.dark : 'transparent', color: isToday ? '#fff' : off ? '#D5D0C9' : C.dark, transition: 'all .15s', position: 'relative', minHeight: 44 }}
                       onMouseEnter={e => { if (!off && !isToday) { e.currentTarget.style.background = C.bg2; e.currentTarget.style.transform = 'scale(1.1)' } }}
                       onMouseLeave={e => { if (!off && !isToday) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.transform = '' } }}>
                       {day}
@@ -795,34 +876,83 @@ export default function BookingPublic() {
         {step === 'slots' && (
           <div style={{ paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.t1, marginBottom: 20 }}>{fmtDateFull(selDate)}</div>
-            {availableSlots.length === 0 ? (
+            {availableSlots.length === 0 && fullSlots.length === 0 ? (
               <div style={{ textAlign: 'center', color: C.t2, padding: '40px 0', fontSize: 14 }}>Nenhum horario disponivel</div>
-            ) : slotGroups.map(g => (
-              <div key={g.k} style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>{g.l}</div>
-                {/* #8: CSS grid layout for even slot distribution */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
-                  {g.s.map(s => {
-                    const booked = slotBookedCounts[s] || 0
-                    // #7: Urgency indicator
-                    const urgencyLabel = booked === (MAX_MACHINES - 1) ? 'Ultimo lugar!' : booked === (MAX_MACHINES - 2) && MAX_MACHINES >= 3 ? '2 lugares' : null
-                    return (
-                      <button key={s} onClick={() => { setSelSlot(s); go(client ? 'confirm' : 'info') }}
-                        style={{ padding: '11px 8px', border: '1px solid ' + C.bd, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: C.white, color: C.dark, fontFamily: "'JetBrains Mono', monospace", transition: 'all .15s', position: 'relative', textAlign: 'center' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.dark; e.currentTarget.style.background = C.dark; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.05)' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.bd; e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.dark; e.currentTarget.style.transform = '' }}>
-                        {s}
-                        {urgencyLabel && (
-                          <div style={{ fontSize: 8, fontWeight: 700, color: booked === (MAX_MACHINES - 1) ? C.er : C.wr, marginTop: 2, fontFamily: "'DM Sans', sans-serif", letterSpacing: 0 }}>
-                            {urgencyLabel}
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+            ) : (
+              <>
+                {slotGroups.map(g => (
+                  <div key={g.k} style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>{g.l}</div>
+                    {/* #8: CSS grid layout for even slot distribution */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
+                      {g.s.map(s => {
+                        const booked = slotBookedCounts[s] || 0
+                        // #7: Urgency indicator
+                        const urgencyLabel = booked === (MAX_MACHINES - 1) ? 'Ultimo lugar!' : booked === (MAX_MACHINES - 2) && MAX_MACHINES >= 3 ? '2 lugares' : null
+                        return (
+                          <button key={s} onClick={() => { setSelSlot(s); go(client ? 'confirm' : 'info') }}
+                            style={{ padding: '11px 8px', border: '1px solid ' + C.bd, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: C.white, color: C.dark, fontFamily: "'JetBrains Mono', monospace", transition: 'all .15s', position: 'relative', textAlign: 'center' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.dark; e.currentTarget.style.background = C.dark; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.05)' }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.bd; e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.dark; e.currentTarget.style.transform = '' }}>
+                            {s}
+                            {urgencyLabel && (
+                              <div style={{ fontSize: 8, fontWeight: 700, color: booked === (MAX_MACHINES - 1) ? C.er : C.wr, marginTop: 2, fontFamily: "'DM Sans', sans-serif", letterSpacing: 0 }}>
+                                {urgencyLabel}
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {fullSlots.length > 0 && (
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>Completos</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
+                      {fullSlots.map(s => (
+                        <button
+                          key={s}
+                          onClick={async () => {
+                            setLoading(true)
+                            const wid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
+                            await supabase.from('waitlist').insert({
+                              id: wid,
+                              client_name: client ? client.name : guestName,
+                              client_phone: phone,
+                              date: selDate,
+                              time_slot: s,
+                              status: 'waiting',
+                              created_at: new Date().toISOString()
+                            })
+                            setWaitlistJoined(true)
+                            setLoading(false)
+                            setTimeout(() => setWaitlistJoined(false), 3000)
+                          }}
+                          disabled={loading}
+                          style={{
+                            padding: '10px 8px', border: '1px dashed ' + C.bd, borderRadius: 10,
+                            fontSize: 12, fontWeight: 500, cursor: 'pointer', background: C.bg,
+                            color: C.t2, fontFamily: "'JetBrains Mono', monospace", transition: 'all .15s',
+                            textAlign: 'center'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = C.wr; e.currentTarget.style.color = C.wr }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = C.bd; e.currentTarget.style.color = C.t2 }}
+                        >
+                          <div>{s}</div>
+                          <div style={{ fontSize: 9, fontWeight: 400, fontFamily: "'DM Sans', sans-serif", marginTop: 2 }}>Lista espera</div>
+                        </button>
+                      ))}
+                    </div>
+                    {waitlistJoined && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: C.ok, fontWeight: 600, textAlign: 'center' }}>
+                        Adicionado a lista de espera! Sera notificado se um lugar ficar disponivel.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -884,6 +1014,33 @@ export default function BookingPublic() {
                     <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', maxWidth: '55%' }}>{r.v}</span>
                   </div>
               )}
+              {/* Recurring booking toggle — only for existing clients */}
+              {client && bookingType === 'normal' && (
+                <div style={{ borderTop: '1px solid ' + C.bg2, margin: '0 18px', padding: '14px 0' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={recurring} onChange={e => setRecurring(e.target.checked)}
+                      style={{ width: 18, height: 18, accentColor: C.dark }} />
+                    <span style={{ fontWeight: 600 }}>Repetir semanalmente</span>
+                  </label>
+                  {recurring && (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, color: C.t1 }}>Durante</span>
+                      <select value={recurringWeeks} onChange={e => setRecurringWeeks(Number(e.target.value))}
+                        style={{ padding: '6px 10px', border: '1px solid ' + C.bd, borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: C.white, color: C.dark }}>
+                        {[2,3,4,6,8].map(w => <option key={w} value={w}>{w} semanas</option>)}
+                      </select>
+                      <span style={{ fontSize: 12, color: C.t1 }}>({recurringWeeks} sessoes)</span>
+                    </div>
+                  )}
+                  {recurring && client && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: creditsRem < recurringWeeks ? C.er : C.t2 }}>
+                      {creditsRem < recurringWeeks
+                        ? `Atencao: apenas ${creditsRem} sessoes restantes (${recurringWeeks} necessarias)`
+                        : `${creditsRem} sessoes disponiveis`}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ fontSize: 11, color: C.t2, marginBottom: 20, lineHeight: 1.6, textAlign: 'center' }}>
               Cancelamento ate {CANCEL_CUTOFF_HOURS}h antes da sessao.
@@ -910,6 +1067,11 @@ export default function BookingPublic() {
             <div style={{ fontSize: 13, color: bookingType === 'trial' ? C.wr : C.inf, fontWeight: 600, marginBottom: 32 }}>
               {bookingType === 'trial' ? 'Sessao experimental' : 'Sessao cliente'} &middot; {bookingType === 'trial' ? '15' : '25'} min
             </div>
+            {recurring && recurringWeeks > 1 && (
+              <div style={{ fontSize: 13, color: C.t1, marginBottom: 8 }}>
+                + {recurringWeeks - 1} sessoes agendadas nas proximas semanas
+              </div>
+            )}
             {/* Add to calendar */}
             <a href={generateIcsUrl(selDate, selSlot, bookingType)} download="bodyfit-sessao.ics"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 14, background: C.white, border: '1px solid ' + C.bd, borderRadius: 12, fontSize: 14, fontWeight: 600, color: C.dark, textDecoration: 'none', marginBottom: 16, cursor: 'pointer', transition: 'all .15s' }}
@@ -926,12 +1088,12 @@ export default function BookingPublic() {
               </div>
             </div>
             {client ? (
-              <button onClick={() => { setDashTab('overview'); go('dashboard', 'left') }}
+              <button onClick={() => { setDashTab('overview'); setRecurring(false); setRecurringWeeks(4); go('dashboard', 'left') }}
                 style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Voltar ao meu espaco
               </button>
             ) : (
-              <button onClick={() => { setStep('identify'); setSelDate(''); setSelSlot(''); setGuestName(''); setPhone(''); setEmail(''); setBookingType('') }}
+              <button onClick={() => { setStep('identify'); setSelDate(''); setSelSlot(''); setGuestName(''); setPhone(''); setEmail(''); setBookingType(''); setRecurring(false); setRecurringWeeks(4) }}
                 style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Nova marcacao
               </button>
@@ -946,6 +1108,7 @@ export default function BookingPublic() {
 
       <style>{`
         @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
       `}</style>
     </div>
   )

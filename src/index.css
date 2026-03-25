@@ -106,3 +106,6 @@ td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--bd)}tr:hover t
 .bk-my{display:flex;flex-direction:column;gap:8px}.bk-my-i{padding:12px;border:1px solid var(--bd);border-radius:var(--rs);display:flex;justify-content:space-between;align-items:center}
 .bk-my-i.past{opacity:.5}
 @keyframes bkIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.bk-in{animation:bkIn .3s ease forwards}
+/* Focus visible for accessibility */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:var(--rs)}
+.bk-slot:focus-visible,.bk-cal-d:focus-visible{outline:2px solid #1A1714;outline-offset:2px}

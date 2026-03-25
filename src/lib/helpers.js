@@ -104,6 +104,12 @@ export function waLink(phone, message) {
   return `https://wa.me/${clean.replace('+', '')}?text=${encodeURIComponent(message)}`
 }
 
+export function generateReferralCode(name) {
+  const clean = (name || 'BF').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase()
+  return `${clean}-${rand}`
+}
+
 export function getAvailabilityForDate(bookings, date) {
   const slots = generateSlots(date)
   if (slots.length === 0) return { total: 0, booked: 0, available: 0 }

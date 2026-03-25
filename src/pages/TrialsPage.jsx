@@ -1,7 +1,7 @@
 import { useState, useMemo, Fragment } from 'react'
 import { T } from '../lib/i18n'
 import { SUB, LSTAGES } from '../lib/constants'
-import { uid, daysTo, fmtDate, waLink } from '../lib/helpers'
+import { uid, daysTo, fmtDate, waLink, generateReferralCode } from '../lib/helpers'
 import Icon from '../components/Icon'
 import ImportModal from '../components/ImportModal'
 
@@ -48,7 +48,19 @@ export default function TrialsPage({ trials, setTrials, clients, setClients, lan
     if (!sel) return
     const sub = SUB[convSub]; const cr = sub.cr
     const endDate = sub.mo ? (() => { const d = new Date(convStart); d.setMonth(d.getMonth() + sub.mo); return d.toISOString().split("T")[0] })() : ""
-    setClients(p => [...p, { id: uid(), name: sel.name, status: "active", gender: "female", phone: sel.phone, email: sel.email, startDate: convStart, endDate: endDate, source: sel.origin || sel.source || "studio", sub: convSub, credits: cr, used: 0, bonus: 0, rem: cr, notes: "", nif: sel.nif || "", birthDate: sel.birthDate || "", address: sel.address || "", contraindications: "", medicalNotes: "", sessions: [], suspensionHistory: [], renewalHistory: [] }])
+    // Extract referral code from notes (format: "Ref: CODE")
+    const refMatch = (sel.notes || '').match(/Ref:\s*([A-Z0-9-]+)/)
+    const referredByCode = refMatch ? refMatch[1] : ''
+    const newClient = { id: uid(), name: sel.name, status: "active", gender: "female", phone: sel.phone, email: sel.email, startDate: convStart, endDate: endDate, source: sel.origin || sel.source || "studio", sub: convSub, credits: cr, used: 0, bonus: 0, rem: cr, notes: "", nif: sel.nif || "", birthDate: sel.birthDate || "", address: sel.address || "", contraindications: "", medicalNotes: "", sessions: [], suspensionHistory: [], renewalHistory: [], referralCode: generateReferralCode(sel.name), referredBy: referredByCode, referralCount: 0, referralBonus: 0 }
+    // If referred, reward the referrer
+    if (referredByCode) {
+      setClients(p => {
+        const updated = p.map(c => c.referralCode === referredByCode ? { ...c, referralCount: (c.referralCount || 0) + 1, referralBonus: (c.referralBonus || 0) + 1, bonus: (c.bonus || 0) + 1, rem: (c.rem || 0) + 1 } : c)
+        return [...updated, newClient]
+      })
+    } else {
+      setClients(p => [...p, newClient])
+    }
     setTrials(p => p.filter(x => x.id !== sel.id))
     setSel(null); setShowConvert(false)
   }

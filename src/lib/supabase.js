@@ -13,7 +13,9 @@ export function dbToClient(r) {
     credits: r.credits, used: r.used, bonus: r.bonus, rem: r.rem, notes: r.notes,
     nif: r.nif, birthDate: r.birth_date, contraindications: r.contraindications,
     medicalNotes: r.medical_notes, sessions: r.sessions || [],
-    suspensionHistory: r.suspension_history || [], renewalHistory: r.renewal_history || []
+    suspensionHistory: r.suspension_history || [], renewalHistory: r.renewal_history || [],
+    referralCode: r.referral_code || '', referredBy: r.referred_by || '',
+    referralCount: r.referral_count || 0, referralBonus: r.referral_bonus || 0
   }
 }
 
@@ -24,7 +26,9 @@ export function clientToDb(c) {
     credits: c.credits, used: c.used, bonus: c.bonus, rem: c.rem, notes: c.notes,
     nif: c.nif, birth_date: c.birthDate, contraindications: c.contraindications,
     medical_notes: c.medicalNotes, sessions: c.sessions || [],
-    suspension_history: c.suspensionHistory || [], renewal_history: c.renewalHistory || []
+    suspension_history: c.suspensionHistory || [], renewal_history: c.renewalHistory || [],
+    referral_code: c.referralCode || '', referred_by: c.referredBy || '',
+    referral_count: c.referralCount || 0, referral_bonus: c.referralBonus || 0
   }
 }
 
@@ -76,7 +80,8 @@ export function dbToBooking(r) {
   return {
     id: r.id, clientId: r.client_id, clientName: r.client_name, clientPhone: r.client_phone,
     date: r.date, timeSlot: r.time_slot, type: r.type, status: r.status,
-    notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at
+    notes: r.notes, createdAt: r.created_at, updatedAt: r.updated_at,
+    reviewRequestedAt: r.review_requested_at || ''
   }
 }
 
@@ -86,6 +91,7 @@ export function bookingToDb(b) {
     client_phone: b.clientPhone || "", date: b.date, time_slot: b.timeSlot,
     type: b.type || "normal", status: b.status || "confirmed",
     notes: b.notes || "", created_at: b.createdAt || new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    review_requested_at: b.reviewRequestedAt || null
   }
 }

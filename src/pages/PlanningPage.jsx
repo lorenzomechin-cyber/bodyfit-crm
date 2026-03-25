@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { T } from '../lib/i18n'
 import { uid, waLink } from '../lib/helpers'
 import { generateSlots, getSlotCounts, isSlotAvailable } from '../lib/helpers'
-import { MAX_MACHINES } from '../lib/constants'
+import { MAX_MACHINES, GOOGLE_REVIEW_URL } from '../lib/constants'
+import { supabase } from '../lib/supabase'
 import Icon from '../components/Icon'
 
 const addDays = (d, n) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + n); return x.toISOString().split("T")[0] }
@@ -21,15 +22,20 @@ const fmtShort = (d) => { const dt = new Date(d + "T12:00:00"); return dayNames[
 export default function PlanningPage({ bookings, setBookings, clients, lang, trials, setTrials }) {
   const t = T[lang]
 
-  // #3 — reactive todayStr (updates if tab stays open past midnight)
-  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], [])
-  // We use a state-driven approach: re-render on interaction will pick up new date.
-  // For true midnight reactivity we'd need a timer, but this is sufficient for CRM use.
+  const todayStr = new Date().toISOString().split("T")[0]
 
   const [view, setView] = useState("day")
   const [sel, setSel] = useState(() => new Date().toISOString().split("T")[0])
   const [modal, setModal] = useState(null)
   const [search, setSearch] = useState("")
+  const [waitlist, setWaitlist] = useState([])
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('waitlist').select('*').eq('status', 'waiting')
+      if (data) setWaitlist(data)
+    })()
+  }, [bookings]) // reload when bookings change (a cancel might free a spot)
 
   // #8 — filter by booking type
   const [typeFilter, setTypeFilter] = useState("all") // all | normal | trial
@@ -251,6 +257,7 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
         <div className="cd"><div className="sl">{t.todayBookings}</div><div className="sv sv-ac">{stats.today}</div></div>
         <div className="cd"><div className="sl">{t.fillRate}</div><div className={"sv " + (stats.fill >= 80 ? "sv-ok" : stats.fill >= 40 ? "sv-wr" : "sv-er")}>{stats.fill}%</div></div>
         <div className="cd"><div className="sl">{t.weekTotal}</div><div className="sv sv-inf">{stats.weekBk}</div></div>
+        <div className="cd"><div className="sl">Liste d'attente</div><div className="sv sv-wr">{waitlist.filter(w => w.date === todayStr).length}</div></div>
       </div>
 
       {/* Day View */}
@@ -307,6 +314,15 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
                         ) : !past && isSlotAvailable(bookings, sel, slot) ? (
                           <button className="pl-add" onClick={() => openAdd(sel, slot)}><Icon n="plus" s={11} /></button>
                         ) : null}
+                        {/* Show waitlist indicator when slot is full */}
+                        {(() => {
+                          const wlCount = waitlist.filter(w => w.date === sel && w.time_slot === slot).length
+                          return wlCount > 0 ? (
+                            <span style={{ fontSize: 9, color: 'var(--wr)', fontWeight: 600 }} title="En liste d'attente">
+                              {wlCount} en attente
+                            </span>
+                          ) : null
+                        })()}
                       </div>
                     )
                   })
@@ -489,11 +505,27 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
                     {/* #7 — reschedule button */}
                     <button className="bt bs bsm" onClick={() => rescheduleBooking(bk)}><Icon n="repeat" s={11} /> Reprogrammer</button>
                     <button className="bt bs bsm" onClick={() => cancelBooking(bk.id)}>{t.cancelBooking}</button>
+                    {(() => {
+                      const wl = waitlist.filter(w => w.date === bk.date && w.time_slot === bk.timeSlot)
+                      if (wl.length === 0) return null
+                      const first = wl[0]
+                      return (
+                        <a href={waLink(first.client_phone, `Ola ${first.client_name}! Um lugar ficou disponivel para a sua sessao EMS no dia ${fmtD(first.date)} as ${first.time_slot}. Confirme a sua reserva aqui: ${window.location.origin}/#book`)}
+                          target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: 'none', color: '#25D366' }}>
+                          <Icon n="phone" s={11} /> Notifier {wl.length} en attente
+                        </a>
+                      )
+                    })()}
                   </>
                 ) : bk.status === "noshow" && bk.clientPhone ? (
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     {statusBadge(bk.status)}
                     <a href={waLink(bk.clientPhone, `Bonjour ${bk.clientName || ''}, nous avons remarqu\u00e9 votre absence aujourd'hui chez BodyFit. Souhaitez-vous reprogrammer votre s\u00e9ance ? \u{1F60A}`)} target="_blank" rel="noopener" className="bt bs bsm" style={{ textDecoration: "none", color: "#25D366" }}><Icon n="phone" s={11} /> {t.noShowFollowUp}</a>
+                  </div>
+                ) : bk.status === "completed" ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    {statusBadge(bk.status)}
+                    {bk.clientPhone ? <a href={waLink(bk.clientPhone, `Merci pour votre séance aujourd'hui ${bk.clientName || ''} ! \u{1F4AA}\n\nSi vous avez 30 secondes, un petit avis Google nous aide énormément :\n${GOOGLE_REVIEW_URL}\n\nMerci ! \u{1F64F}`)} target="_blank" rel="noopener" className="bt bsm" style={{ textDecoration: "none", color: "#fff", background: "#4285F4", border: "none", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon n="star" s={11} /> {t.askReview}</a> : null}
                   </div>
                 ) : (
                   statusBadge(bk.status)

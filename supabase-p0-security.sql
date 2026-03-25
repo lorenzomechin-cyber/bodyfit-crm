@@ -156,3 +156,28 @@ GRANT SELECT ON public_client_booking_view TO anon;
 
 -- Revoke direct anon SELECT on clients table
 REVOKE SELECT ON clients FROM anon;
+
+
+-- ─── 8. WAITLIST TABLE ───
+CREATE TABLE IF NOT EXISTS waitlist (
+  id TEXT PRIMARY KEY,
+  client_name TEXT NOT NULL,
+  client_phone TEXT,
+  date TEXT NOT NULL,
+  time_slot TEXT NOT NULL,
+  status TEXT DEFAULT 'waiting',
+  created_at TEXT,
+  notified_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_waitlist_date ON waitlist(date);
+CREATE INDEX IF NOT EXISTS idx_waitlist_phone ON waitlist(client_phone);
+
+ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public all on waitlist" ON waitlist FOR ALL USING (true) WITH CHECK (true);
+
+
+-- ─── 9. REFERRALS TRACKING ───
+-- Track referrals via booking notes (Ref: CLIENT_ID)
+-- Future: dedicated referrals table for reward automation
+-- For now, referral data is stored in booking notes field

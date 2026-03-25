@@ -41,6 +41,11 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
   const sessToday = useMemo(() => clients.reduce((n, c) => n + (c.sessions || []).filter(s => s.date === td).length, 0), [clients, td])
   const bookToday = useMemo(() => bookings.filter(b => b.date === td && (b.status === "confirmed" || b.status === "completed")).length, [bookings, td])
 
+  const reviewsThisMonth = useMemo(() => {
+    const monthStart = td.substring(0, 7) + '-01'
+    return bookings.filter(b => b.reviewRequestedAt && b.reviewRequestedAt >= monthStart).length
+  }, [bookings, td])
+
   // Section 2: Today's timeline
   const todaySlots = useMemo(() => generateSlots(td), [td])
   const todayTimeline = useMemo(() => {
@@ -68,6 +73,56 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
 
   const noShows = useMemo(() => bookings.filter(b => b.date === td && b.status === "noshow"), [bookings, td])
 
+  const bookingAnalytics = useMemo(() => {
+    if (!bookings.length) return null
+    const now = new Date()
+
+    // Last 4 weeks data
+    const weeks = []
+    for (let w = 0; w < 4; w++) {
+      const weekEnd = new Date(now)
+      weekEnd.setDate(now.getDate() - (w * 7))
+      const weekStart = new Date(weekEnd)
+      weekStart.setDate(weekEnd.getDate() - 6)
+      const startStr = weekStart.toISOString().split('T')[0]
+      const endStr = weekEnd.toISOString().split('T')[0]
+      const weekBookings = bookings.filter(b => b.date >= startStr && b.date <= endStr && (b.status === 'confirmed' || b.status === 'completed'))
+      const noshows = bookings.filter(b => b.date >= startStr && b.date <= endStr && b.status === 'noshow')
+      weeks.push({ start: startStr, end: endStr, count: weekBookings.length, noshows: noshows.length, label: 'S' + (4 - w) })
+    }
+    weeks.reverse()
+
+    // Fill rate by hour (heatmap data)
+    const hourCounts = {}
+    const dayNames = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam']
+    for (let d = 1; d <= 6; d++) { // Mon-Sat
+      hourCounts[d] = {}
+    }
+    bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').forEach(b => {
+      const day = new Date(b.date + 'T12:00:00').getDay()
+      if (day === 0) return
+      const hour = b.timeSlot?.split(':')[0]
+      if (!hour) return
+      if (!hourCounts[day]) hourCounts[day] = {}
+      hourCounts[day][hour] = (hourCounts[day][hour] || 0) + 1
+    })
+
+    // No-show rate
+    const totalSessions = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed' || b.status === 'noshow').length
+    const totalNoshows = bookings.filter(b => b.status === 'noshow').length
+    const noshowRate = totalSessions > 0 ? Math.round(totalNoshows / totalSessions * 100) : 0
+
+    // Trial conversion: count trials that have a matching phone with a normal booking later
+    const trialPhones = new Set(bookings.filter(b => b.type === 'trial' && (b.status === 'completed')).map(b => b.clientPhone))
+    const convertedTrials = [...trialPhones].filter(phone => bookings.some(b => b.clientPhone === phone && b.type === 'normal')).length
+    const trialConversion = trialPhones.size > 0 ? Math.round(convertedTrials / trialPhones.size * 100) : 0
+
+    // Max bar value for chart scaling
+    const maxWeekCount = Math.max(...weeks.map(w => w.count), 1)
+
+    return { weeks, hourCounts, dayNames, noshowRate, trialConversion, totalNoshows, totalSessions, maxWeekCount }
+  }, [bookings])
+
   // Section 4 (kept): expiring 30d + funnel
   const expiring = useMemo(() => clients.filter(c => c.status === "active" && c.endDate).map(c => { const adj = getAdjustedEndDate(c); const dl = daysTo(td, adj); return { ...c, daysLeft: dl, adjEnd: adj } }).filter(c => c.daysLeft > 0 && c.daysLeft <= 30).sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 8), [clients, td])
 
@@ -85,7 +140,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
       </div>
 
       <div className="cg">
-        {[{ l: t.sessionsToday, v: sessToday, c: "sv-ac" }, { l: t.todayBookings || "Reservations", v: bookToday, c: "sv-inf" }, { l: t.activeClients, v: st.ac, c: "sv-ok", s: st.tot + " " + t.totalClients }, { l: t.upcomingRenewals, v: st.rn, c: "sv-er" }, { l: t.lowCredits, v: st.lc, c: "sv-inf" }, { l: t.suspendedClients, v: st.sc, c: "sv-wr" }].map((x, i) =>
+        {[{ l: t.sessionsToday, v: sessToday, c: "sv-ac" }, { l: t.todayBookings || "Reservations", v: bookToday, c: "sv-inf" }, { l: t.activeClients, v: st.ac, c: "sv-ok", s: st.tot + " " + t.totalClients }, { l: t.upcomingRenewals, v: st.rn, c: "sv-er" }, { l: t.lowCredits, v: st.lc, c: "sv-inf" }, { l: t.suspendedClients, v: st.sc, c: "sv-wr" }, { l: t.reviewsRequested, v: reviewsThisMonth, c: "sv-ok" }].map((x, i) =>
           <div key={i} className="cd"><div className="sl">{x.l}</div><div className={"sv " + (x.c || "")}>{x.v}</div>{x.s ? <div className="ss">{x.s}</div> : null}</div>
         )}
       </div>
@@ -192,6 +247,59 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
           ))}
         </div><div style={{ textAlign: "center", marginTop: 6 }}><span style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: "var(--ok)" }}>{st.cr}%</span><span style={{ fontSize: 10, color: "var(--t2)", marginLeft: 5 }}>{t.conversionRate}</span></div></div>
       </div>
+
+      {/* Booking Analytics */}
+      {bookingAnalytics && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, marginBottom: 20 }}>
+
+          {/* Weekly sessions chart */}
+          <div className="cd">
+            <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <Icon n="activity" s={13} />Sessoes par semaine
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100, marginTop: 10 }}>
+              {bookingAnalytics.weeks.map((w, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 10, fontFamily: "var(--fm)", fontWeight: 700, color: "var(--t0)" }}>{w.count}</span>
+                  <div style={{ width: "100%", background: "var(--ok)", borderRadius: 4, height: Math.max(4, (w.count / bookingAnalytics.maxWeekCount) * 80), transition: "height .5s ease" }} />
+                  <span style={{ fontSize: 9, color: "var(--t2)" }}>{w.label}</span>
+                </div>
+              ))}
+            </div>
+            {bookingAnalytics.weeks.some(w => w.noshows > 0) && (
+              <div style={{ marginTop: 8, fontSize: 10, color: "var(--t2)" }}>
+                Absences: {bookingAnalytics.weeks.map(w => w.noshows).join(" · ")}
+              </div>
+            )}
+          </div>
+
+          {/* KPI cards */}
+          <div className="cd">
+            <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <Icon n="grid" s={13} />Indicateurs cles
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: bookingAnalytics.noshowRate > 10 ? "var(--er)" : "var(--ok)" }}>{bookingAnalytics.noshowRate}%</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>Taux absence</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: bookingAnalytics.trialConversion > 50 ? "var(--ok)" : "var(--wr)" }}>{bookingAnalytics.trialConversion}%</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>Conv. essais</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--inf)" }}>{bookingAnalytics.totalSessions}</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>Total sessoes</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--er)" }}>{bookingAnalytics.totalNoshows}</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>Total absences</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
     </div>
   )
 }

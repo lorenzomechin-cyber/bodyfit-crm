@@ -48,6 +48,11 @@ export default async function handler(req, res) {
       results.push(await birthdayWish())
     }
 
+    // Review request: 20h Mon-Sat
+    if (hour === 20 && isWorkday()) {
+      results.push(await reviewRequest())
+    }
+
     res.status(200).json({ ok: true, hour, dow, results })
   } catch (err) {
     console.error('[Dispatch] Error:', err)
@@ -296,4 +301,48 @@ async function birthdayWish() {
   }
 
   return { agent: 'birthday', sent }
+}
+
+// ── Agent: Review request ────────────────────────────────────────
+async function reviewRequest() {
+  const today = todayStr()
+  const GOOGLE_REVIEW_URL = 'https://g.page/r/YOUR_GOOGLE_PLACE_ID/review'
+
+  // Get today's completed bookings
+  const { data: completedBookings } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('date', today)
+    .eq('status', 'completed')
+
+  if (!completedBookings?.length) return { agent: 'reviewRequest', sent: 0 }
+
+  // Check which clients already had a review request in the last 30 days
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0]
+
+  const { data: recentReviews } = await supabase
+    .from('bookings')
+    .select('client_phone')
+    .not('review_requested_at', 'is', null)
+    .gte('review_requested_at', cutoffDate)
+
+  const recentPhones = new Set((recentReviews || []).map(r => r.client_phone))
+
+  let sent = 0
+  for (const b of completedBookings) {
+    if (!b.client_phone) continue
+    if (recentPhones.has(b.client_phone)) continue
+
+    const msg = `Merci pour votre séance aujourd'hui ${b.client_name || ''} ! 💪\n\nSi vous avez 30 secondes, un petit avis Google nous aide énormément :\n${GOOGLE_REVIEW_URL}\n\nMerci et à bientôt ! 🙏`
+    const result = await sendWhatsApp(b.client_phone, msg)
+
+    if (result.ok) {
+      sent++
+      await supabase.from('bookings').update({ review_requested_at: today }).eq('id', b.id)
+    }
+  }
+
+  return { agent: 'reviewRequest', sent }
 }
