@@ -61,6 +61,7 @@ export default function NutritionPage({ lang }) {
         <div className="ph" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button className="bt bs bsm" onClick={() => sSel(null)}>&larr; Retour</button>
           <h2 style={{ flex: 1 }}>{p.name || "Sans nom"}</h2>
+          <button className="bt bs bsm" onClick={() => { const skip = new Set(["id","created_at","status","program_generated"]); const txt = Object.keys(p).filter(k => !skip.has(k) && p[k]).map(k => k.replace(/_/g," ").toUpperCase() + ": " + String(p[k])).join("\n"); navigator.clipboard.writeText(txt); alert("Reponses copiees !") }}>Copier reponses</button>
           <span style={{ fontSize: 10, fontWeight: 600, color: dayCol }}>{p.program_generated ? "\u2713 Envoy\u00e9" : days + "j d\u2019attente"}</span>
           <span style={{ background: stCol + "18", color: stCol, padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, marginLeft: 6 }}>{stLabel}</span>
         </div>
