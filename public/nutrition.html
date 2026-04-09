@@ -318,7 +318,7 @@ async function doSignup(){
   var pw=document.getElementById("auth-pw").value;
   var name=document.getElementById("auth-name").value;
   if(!email||!pw||!name)return;
-  var res=await sb.auth.signUp({email:email,password:pw});
+  var res=await sb.auth.signUp({email:email,password:pw,options:{emailRedirectTo:window.location.origin+"/nutrition.html"}});
   if(res.error){showAuthError(res.error.message);return}
   if(res.data.user){
     await sb.from("client_accounts").insert({id:res.data.user.id,email:email,name:name,language:state.lang});
