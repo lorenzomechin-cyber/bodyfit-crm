@@ -1,5 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Component } from 'react'
 import { supabase } from '../lib/supabase'
+
+// Error boundary to catch render crashes
+class NutritionErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (this.state.error) return <div style={{ padding: 40, textAlign: 'center', fontFamily: 'system-ui' }}>
+      <h2>Erreur</h2><pre style={{ fontSize: 12, color: 'red', whiteSpace: 'pre-wrap', marginTop: 12 }}>{this.state.error.message}</pre>
+    </div>
+    return this.props.children
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // i18n — FR / PT / EN (condensed, matches original app)
@@ -306,7 +318,11 @@ function BudgetCards({ k, opts, label, d, set }) {
 // ═══════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════
-export default function NutritionPublic() {
+export default function NutritionPublicWrapper() {
+  return <NutritionErrorBoundary><NutritionPublicInner /></NutritionErrorBoundary>
+}
+
+function NutritionPublicInner() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [account, setAccount] = useState(null)
