@@ -15,12 +15,15 @@ export default function NutritionPage({ lang }) {
   const [sort, sSort] = useState("date_desc")
   const [view, sView] = useState("list")
 
+  const [accounts, sAccounts] = useState([])
   useEffect(() => {
     async function ld() {
       const r1 = await supabase.from("nutrition_profiles").select("*").order("created_at", { ascending: false })
       if (r1.data) sProfiles(r1.data)
       const r2 = await supabase.from("weekly_feedbacks").select("*").order("created_at", { ascending: false })
       if (r2.data) sFeedbacks(r2.data)
+      const r3 = await supabase.from("client_accounts").select("id,nutrition_profile_id").not("nutrition_profile_id", "is", null)
+      if (r3.data) sAccounts(r3.data)
       sLoaded(true)
     }
     ld()
@@ -52,7 +55,8 @@ export default function NutritionPage({ lang }) {
   if (sel) {
     const p = sel; const days = dago(p.created_at)
     const dayCol = p.program_generated ? "var(--ok)" : days > 5 ? "var(--er)" : days > 2 ? "var(--wr)" : "var(--ok)"
-    const pfb = feedbacks.filter(f => f.client_id === p.id)
+    const acct = accounts.find(a => a.nutrition_profile_id === p.id)
+    const pfb = feedbacks.filter(f => f.client_id === p.id || (acct && f.client_id === acct.id))
     const stLabel = p.program_generated ? t.nutDone : p.status === "in_progress" ? t.nutInProgress : t.nutNew
     const stCol = p.program_generated ? "var(--ok)" : p.status === "in_progress" ? "var(--inf)" : "var(--wr)"
 
