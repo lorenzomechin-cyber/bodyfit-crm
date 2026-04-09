@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Bodyfit — Mon Espace</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="manifest" href="data:application/json,{%22name%22:%22Bodyfit%20Mon%20Espace%22,%22short_name%22:%22Bodyfit%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23FAFAF8%22,%22theme_color%22:%22%23B8860B%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%253Csvg%2520xmlns%3D%27http%3A//www.w3.org/2000/svg%27%2520viewBox%3D%270%25200%2520100%2520100%27%253E%253Crect%2520fill%3D%27%2523B8860B%27%2520width%3D%2527100%27%2520height%3D%2527100%27%2520rx%3D%252720%27/%253E%253Ctext%2520x%3D%252750%27%2520y%3D%252768%27%2520font-family%3D%2527Arial%27%2520font-size%3D%252745%27%2520font-weight%3D%2527bold%27%2520fill%3D%2527white%27%2520text-anchor%3D%2527middle%27%253EBF%253C/text%253E%253C/svg%253E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bodyfit">
+<meta name="theme-color" content="#B8860B">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#FAFAF8;--bg2:#FFFFFF;--bg3:#F5F3EF;--bg4:#EDEAE4;
+--text:#1A1A1A;--text2:#5A5A5A;--text3:#9A9A9A;
+--gold:#B8860B;--gold-l:#FFF8E7;--gold-d:#8B6508;--gold-xl:#FFFDF5;
+--blue:#1A6FB5;--blue-l:#E3F0FB;
+--green:#1B7A45;--green-l:#E6F4EC;
+--red:#C43333;--red-l:#FDE8E8;
+--border:#E0DDD8;--radius:12px;--radius-lg:16px;
+--font:'DM Sans',system-ui,sans-serif;
+--shadow:0 2px 12px rgba(0,0,0,.06);--shadow-lg:0 8px 32px rgba(0,0,0,.08);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* ─── AUTH SCREENS ─── */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,var(--bg) 0%,var(--gold-xl) 50%,var(--bg) 100%)}
+.auth-card{width:100%;max-width:400px;background:var(--bg2);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden}
+.auth-header{padding:32px 32px 20px;text-align:center}
+.logo{font-size:32px;font-weight:700;letter-spacing:-0.5px}.logo em{font-style:normal;color:var(--gold)}
+.logo-sub{font-size:9px;letter-spacing:4px;color:var(--text3);text-transform:uppercase;margin-top:2px}
+.auth-body{padding:0 32px 32px}
+.auth-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.auth-desc{font-size:12px;color:var(--text2);margin-bottom:20px}
+.auth-toggle{font-size:12px;color:var(--text2);text-align:center;margin-top:16px}
+.auth-toggle a{color:var(--gold);font-weight:600;cursor:pointer;text-decoration:none}
+.auth-toggle a:hover{text-decoration:underline}
+.auth-error{padding:10px 14px;background:var(--red-l);color:var(--red);font-size:12px;border-radius:8px;margin-bottom:12px;display:none}
+.auth-success{padding:10px 14px;background:var(--green-l);color:var(--green);font-size:12px;border-radius:8px;margin-bottom:12px;display:none}
+.auth-lang{display:flex;justify-content:center;gap:6px;margin-bottom:20px}
+.lang-btn{padding:6px 14px;border:1.5px solid var(--border);border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;background:var(--bg2);transition:all .2s;font-family:var(--font)}
+.lang-btn.on{background:var(--gold);color:white;border-color:var(--gold)}
+
+/* ─── FORM ELEMENTS ─── */
+.field{margin-bottom:16px}
+.label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.label .req{color:var(--red)}
+.input,.textarea,.select{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg2);transition:all .2s}
+.input:focus,.textarea:focus,.select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-l)}
+.textarea{min-height:70px;resize:vertical}
+.input::placeholder,.textarea::placeholder{color:var(--text3)}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%239A9A9A' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 20px;border:none;border-radius:var(--radius);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;width:100%}
+.btn-gold{background:var(--gold);color:white}.btn-gold:hover{background:var(--gold-d)}
+.btn-gold:disabled{background:var(--bg4);color:var(--text3);cursor:not-allowed}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--text2)}.btn-outline:hover{background:var(--bg3)}
+.btn-sm{padding:8px 14px;font-size:12px;width:auto}
+.btn-row{display:flex;gap:8px;margin-top:20px}
+
+/* Choices */
+.choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.choice{padding:8px 14px;border:1.5px solid var(--border);border-radius:30px;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;background:var(--bg2);user-select:none}
+.choice:hover{border-color:var(--gold);background:var(--gold-l)}
+.choice.on{background:var(--gold);color:white;border-color:var(--gold)}
+.scale-row{display:flex;gap:4px}.scale-dot{flex:1;aspect-ratio:1;max-width:36px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;background:var(--bg2)}
+.scale-dot:hover{border-color:var(--gold)}.scale-dot.on{background:var(--gold);color:white;border-color:var(--gold)}
+.budget-opt{padding:12px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .2s;background:var(--bg2);margin-bottom:6px}
+.budget-opt:hover{border-color:var(--gold)}.budget-opt.on{border-color:var(--gold);background:var(--gold-l)}
+.budget-opt strong{font-size:13px}.budget-opt span{font-size:10px;color:var(--text2);display:block;margin-top:2px}
+
+/* ─── APP LAYOUT ─── */
+.app{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+.sb-logo{padding:0 20px 20px;border-bottom:1px solid var(--border)}
+.sb-nav{flex:1;padding:12px 10px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--text2);border:none;background:none;width:100%;text-align:left;font-family:var(--font)}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-item.on{background:var(--gold-l);color:var(--gold-d);font-weight:600}
+.sb-item .icon{font-size:18px;width:24px;text-align:center}
+.sb-footer{padding:12px 16px;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:10px}
+.sb-avatar{width:36px;height:36px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px}
+.sb-uname{font-size:12px;font-weight:600}.sb-uemail{font-size:10px;color:var(--text3)}
+.main{margin-left:240px;flex:1;padding:24px 28px;min-height:100vh}
+
+/* Mobile */
+.mob-header{display:none;position:fixed;top:0;left:0;right:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 16px;z-index:40;align-items:center;justify-content:space-between}
+.mob-toggle{background:none;border:none;font-size:22px;cursor:pointer}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.2);z-index:45}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}.sidebar.open{transform:translateX(0)}
+  .mob-header{display:flex}.mob-overlay.show{display:block}
+  .main{margin-left:0;padding:68px 14px 24px}
+}
+
+/* ─── DASHBOARD CARDS ─── */
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px}
+.page-desc{font-size:13px;color:var(--text2);margin-bottom:20px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow)}
+.card-lg{grid-column:span 2}
+@media(max-width:600px){.card-lg{grid-column:span 1}}
+.card-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.card-value{font-size:28px;font-weight:700;color:var(--gold)}
+.card-sub{font-size:11px;color:var(--text2);margin-top:4px}
+.card-icon{font-size:28px;float:right;margin-top:-4px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
+.stat-row:last-child{border:none}
+.stat-label{font-size:12px;color:var(--text2)}.stat-val{font-size:13px;font-weight:600}
+
+/* Program card */
+.program-card{background:linear-gradient(135deg,var(--gold-xl),var(--gold-l));border:1.5px solid var(--gold);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
+.program-card h3{font-size:16px;margin-bottom:4px}
+.program-card p{font-size:12px;color:var(--text2)}
+.program-actions{display:flex;gap:8px;margin-top:14px}
+
+/* Feedback form */
+.feedback-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+.feedback-title{font-size:14px;font-weight:700;margin-bottom:12px}
+.fb-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+@media(max-width:480px){.fb-row{grid-template-columns:1fr}}
+
+/* Progress chart (CSS only) */
+.chart-area{height:180px;display:flex;align-items:flex-end;gap:3px;padding:8px 0;border-bottom:1px solid var(--bg4)}
+.chart-bar{flex:1;background:var(--gold-l);border-radius:4px 4px 0 0;min-height:4px;transition:height .5s;position:relative}
+.chart-bar .tip{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:600;color:var(--gold-d);white-space:nowrap;display:none}
+.chart-bar:hover .tip{display:block}
+.chart-bar:hover{background:var(--gold)}
+.chart-labels{display:flex;gap:3px;margin-top:4px}.chart-labels span{flex:1;text-align:center;font-size:8px;color:var(--text3)}
+
+/* Onboarding progress */
+.onb-progress{margin:20px 0;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.onb-fill{height:100%;background:var(--gold);border-radius:3px;transition:width .4s}
+.onb-step{font-size:11px;color:var(--text3);text-align:center;margin-bottom:16px}
+
+/* Section in onboarding */
+.onb-section{font-size:18px;font-weight:700;margin-bottom:4px}
+.onb-desc{font-size:12px;color:var(--text2);margin-bottom:20px}
+.onb-icon{font-size:28px;margin-bottom:8px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;background:var(--gold);color:white;border-radius:var(--radius);font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:100;animation:slideUp .3s ease;display:none}
+.toast.show{display:block}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Info box */
+.info-box{padding:12px 14px;border-radius:var(--radius);font-size:12px;line-height:1.5;margin:10px 0}
+.info-gold{background:var(--gold-l);border-left:3px solid var(--gold)}
+.info-green{background:var(--green-l);border-left:3px solid var(--green)}
+.info-blue{background:var(--blue-l);border-left:3px solid var(--blue)}
+
+/* Animations */
+.fade-in{animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.empty-text{font-size:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG SUPABASE
+// ═══════════════════════════════════════════
+var SB_URL="https://ddrvyqcnosnzzufzwxaj.supabase.co";
+var SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkcnZ5cWNub3Nuenp1Znp3eGFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMTM3MzcsImV4cCI6MjA4ODg4OTczN30.tmKyH9_AUFfs45R-u_pVCKb_vVPs9P5j12RKAvv1m0I";
+var sb=window.supabase.createClient(SB_URL,SB_KEY);
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+var state={
+  loading:true, user:null, account:null, profile:null,
+  feedbacks:[], page:"dashboard", authMode:"login",
+  lang:"fr", onbStep:0, onbData:{}, sidebarOpen:false,
+  toast:""
+};
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,9)}
+
+// ═══════════════════════════════════════════
+// i18n (condensé)
+// ═══════════════════════════════════════════
+var L={
+fr:{
+  login:"Connexion",signup:"Cr\u00e9er un compte",email:"Email",password:"Mot de passe",name:"Pr\u00e9nom & Nom",
+  loginBtn:"Se connecter",signupBtn:"Cr\u00e9er mon compte",noAccount:"Pas encore de compte ?",hasAccount:"D\u00e9j\u00e0 un compte ?",
+  signupLink:"Cr\u00e9er un compte",loginLink:"Se connecter",forgotPw:"Mot de passe oubli\u00e9 ?",
+  logout:"D\u00e9connexion",dashboard:"Tableau de bord",questionnaire:"Questionnaire",program:"Mon programme",feedback:"Feedback",progress:"Progression",
+  welcome:"Bienvenue",welcomeDesc:"Votre espace nutrition personnalis\u00e9",
+  startOnb:"Commencer le questionnaire",completeOnb:"Compl\u00e9tez votre profil nutritionnel pour recevoir votre programme personnalis\u00e9.",
+  myProgram:"Mon Programme",noProgram:"Votre programme est en cours de cr\u00e9ation",noProgramDesc:"Une fois le questionnaire compl\u00e9t\u00e9, notre \u00e9quipe cr\u00e9era votre programme sous 48h.",
+  downloadPdf:"T\u00e9l\u00e9charger le PDF",viewProgram:"Voir le programme",
+  weeklyFb:"Feedback hebdomadaire",fbDesc:"Remplissez chaque semaine pour ajuster votre prochain programme",
+  weight:"Poids (kg)",waistFb:"Tour de taille (cm)",energy:"\u00c9nergie (1-5)",hunger:"Faim (1-5)",adherence:"Adh\u00e9rence (%)",sleep:"Sommeil (h)",water:"Eau (L/j)",mood:"Humeur (1-5)",notes:"Notes / Ressentis",cycleFb:"Phase du cycle",
+  sendFb:"Envoyer le feedback",fbSent:"Feedback enregistr\u00e9 !",
+  progressTitle:"Ma progression",noData:"Pas encore de donn\u00e9es",
+  weightChart:"\u00c9volution du poids",waistChart:"Tour de taille",
+  currentWeight:"Poids actuel",targetWeight:"Objectif",remaining:"Restant",
+  weekN:"Sem",
+  onb_p1:"Vos donn\u00e9es",onb_p1d:"Pour calculer vos besoins",
+  onb_p2:"Votre objectif",onb_p2d:"Quel r\u00e9sultat visez-vous ?",
+  onb_p3:"Activit\u00e9 physique",onb_p3d:"Votre entra\u00eenement",
+  onb_p4:"Sant\u00e9",onb_p4d:"S\u00e9curit\u00e9 du programme",
+  onb_p5:"Mode de vie",onb_p5d:"Sommeil, stress, rythme",
+  onb_p6:"Habitudes",onb_p6d:"Comment vous mangez aujourd\u2019hui",
+  onb_p7:"Pr\u00e9f\u00e9rences",onb_p7d:"Go\u00fbts et cuisine",
+  onb_p8:"Budget",onb_p8d:"Pour adapter les ingr\u00e9dients",
+  onb_p9:"Suppl\u00e9mentation",onb_p9d:"Optionnel \u2014 votre choix",
+  onb_p10:"Motivation",onb_p10d:"Pour personnaliser l\u2019approche",
+  next:"Continuer",back:"Retour",submit:"Envoyer",
+  sex:"Sexe",male:"Homme",female:"Femme",age:"\u00c2ge",height:"Taille (cm)",
+  waist:"Tour de taille (cm)",bodyFat:"Masse grasse (%)",targetW:"Poids objectif (kg)",
+  timeline:"D\u00e9lai",tl1:"1-2 mois",tl2:"3-4 mois",tl3:"6 mois",tl4:"1 an",tl5:"Pas de d\u00e9lai",
+  goal:"Objectif principal",g1:"Perte de poids",g2:"Prise de masse",g3:"R\u00e9\u00e9quilibrage",g4:"Performance",g5:"Sant\u00e9 & Bien-\u00eatre",g6:"Maintien",
+  goalDetail:"D\u00e9crivez en une phrase",goalPh:"ex: Me sentir bien dans mon corps / Perdre le ventre / Avoir plus d\u2019\u00e9nergie",
+  emsFreq:"S\u00e9ances EMS / semaine",
+  emsTime:"Moment de votre s\u00e9ance EMS",emsMorning:"Matin",emsNoon:"Midi",emsAfternoon:"Apr\u00e8s-midi",emsEvening:"Soir",
+  otherAct:"Autres activit\u00e9s",noOther:"Uniquement EMS",walk:"Marche",run:"Course \u00e0 pied",gym:"Musculation",swim:"Natation",yoga:"Yoga/Pilates",bike:"V\u00e9lo",other:"Autre",
+  otherIntensity:"Intensit\u00e9 des autres activit\u00e9s",intLight:"L\u00e9g\u00e8re",intMod:"Mod\u00e9r\u00e9e",intHigh:"Intense",
+  dailyAct:"Quotidien hors sport",sed:"S\u00e9dentaire (bureau)",light:"L\u00e9g\u00e8rement actif",actif:"Actif (souvent debout)",vActif:"Tr\u00e8s actif (travail physique)",
+  pathologies:"Pathologies",pathNone:"Aucune",diab:"Diab\u00e8te",chol:"Cholest\u00e9rol",hyp:"Hypertension",thyr:"Thyro\u00efde",sopk:"SOPK",dig:"Troubles digestifs",pathOther:"Autre",
+  pregnant:"\u00cates-vous enceinte ou allaitante ?",pregNo:"Non",pregYes:"Oui",pregNA:"Ne s\u2019applique pas",
+  meds:"M\u00e9dicaments",allergies:"Allergies alimentaires",algNone:"Aucune",nuts:"Fruits \u00e0 coque",sea:"Fruits de mer",egg:"\u0152ufs",soy:"Soja",algOther:"Autre",
+  intol:"Intol\u00e9rances",intNone:"Aucune",lactL:"Lactose (l\u00e9g\u00e8re)",lactS:"Lactose (s\u00e9v\u00e8re)",gluten:"Gluten",histamine:"Histamine",fodmap:"FODMAPs",intOther:"Autre",
+  diet:"R\u00e9gime alimentaire",dietNone:"Aucun",veg:"V\u00e9g\u00e9tarien",vegan:"V\u00e9gan",gf:"Sans gluten",halal:"Halal",noPork:"Sans porc",
+  cycle:"Cycle menstruel",cycReg:"R\u00e9gulier (~28 jours)",cycIrreg:"Irr\u00e9gulier",cycPeri:"P\u00e9rim\u00e9nopause",cycMeno:"M\u00e9nopause",cycNA:"Ne s\u2019applique pas",cycNo:"Pr\u00e9f\u00e8re ne pas r\u00e9pondre",
+  sleepH:"Sommeil (heures)",sleepQ:"Qualit\u00e9 du sommeil",sqGood:"Bon (je dors bien)",sqMed:"Moyen (r\u00e9veils fr\u00e9quents)",sqBad:"Mauvais (insomnie)",
+  stress:"Niveau de stress",stressDesc:"1 = Tr\u00e8s d\u00e9tendu, calme | 5 = Stress mod\u00e9r\u00e9, g\u00e9rable | 10 = \u00c9puis\u00e9, anxieux",
+  workSched:"Horaires de travail",wsClass:"Journ\u00e9e classique (8h-18h)",wsLong:"Horaires longs",wsShift:"D\u00e9cal\u00e9s",wsNight:"Nuit",wsRemote:"T\u00e9l\u00e9travail",wsVar:"Variable",
+  mealTimes:"Heures habituelles des repas",mealPh:"ex: Petit-d\u00e9j 7h30, D\u00e9j 13h, D\u00eener 20h30",
+  mealsDay:"Repas par jour",breakfast:"Petit-d\u00e9jeuner",bfYes:"Oui, toujours",bfSome:"Parfois",bfNo:"Non, jamais",
+  snacking:"Grignotage entre les repas",snNever:"Jamais",snSome:"Parfois (2-3x/sem)",snOften:"Souvent (tous les jours)",snEvening:"Surtout le soir",
+  snackType:"Type de grignotage",sweet:"Sucr\u00e9 (biscuits, chocolat)",salty:"Sal\u00e9 (chips, fromage)",both:"Les deux",healthy:"Sain (fruits, noix)",
+  alcohol:"Consommation d\u2019alcool",alcNo:"Jamais",alcRare:"Rarement (1-2/mois)",alcMod:"Mod\u00e9r\u00e9 (2-3/sem)",alcReg:"R\u00e9gulier (1+/jour)",
+  coffee:"Caf\u00e9s / th\u00e9s par jour",cof0:"0",cof1:"1-2",cof2:"3-4",cof3:"5+",
+  sodas:"Boissons sucr\u00e9es / sodas",sodNo:"Jamais",sodRare:"Occasionnel",sodReg:"R\u00e9gulier",sodDaily:"Quotidien",
+  fruitsVeg:"Portions de fruits et l\u00e9gumes par jour",fv1:"0-1",fv2:"2-3",fv3:"4-5",fv4:"5+",
+  waterDay:"Eau par jour",supplements:"Compl\u00e9ments actuels",suppPh:"Aucun si pas de compl\u00e9ments",
+  mealsOut:"Repas \u00e0 l\u2019ext\u00e9rieur par semaine",
+  dislikes:"Aliments D\u00c9TEST\u00c9S",dislikesPh:"ex: \u00e9pinards, poisson cru, chou-fleur...",dislikesD:"Ne mettez jamais \u00e7a dans mon programme",
+  likes:"Aliments ADOR\u00c9S",likesPh:"ex: poulet, p\u00e2tes, avocat, chocolat...",likesD:"Mettez-en le plus possible !",
+  cuisines:"Cuisines pr\u00e9f\u00e9r\u00e9es",cuMed:"M\u00e9diterran\u00e9enne",cuPT:"Portugaise",cuFR:"Fran\u00e7aise",cuAsia:"Asiatique",cuMex:"Mexicaine",cuUS:"Am\u00e9ricaine",
+  cookTime:"Temps pour cuisiner par repas",ct1:"5-10 min",ct2:"15-20 min",ct3:"20-30 min",ct4:"30+ min",
+  cookLevel:"Niveau en cuisine",clBeg:"D\u00e9butant",clMid:"Interm\u00e9diaire",clAdv:"\u00c0 l\u2019aise",clChef:"Chef \u00e0 la maison",
+  cookFor:"Vous cuisinez pour",cf1:"1 personne",cf2:"2 personnes",cf3:"3-4 (famille)",
+  mealPrep:"Meal prep le week-end ?",mpYes:"Oui, motiv\u00e9(e) !",mpSimple:"Oui, si simple (max 1h30)",mpNo:"Non, je cuisine chaque jour",
+  equip:"\u00c9quipement cuisine",eqFour:"Four",eqMicro:"Micro-ondes",eqBlend:"Blender / Mixeur",eqAir:"Airfryer",eqBasic:"Basique (plaques + casseroles)",eqSteam:"Cuiseur vapeur",eqPressure:"Cocotte-minute",
+  budgetL:"Budget alimentation / semaine (au Portugal)",
+  b1:"30-50 \u20ac",b1d:"\u0152ufs, lentilles, sardines, poulet, l\u00e9gumes de saison",b2:"50-70 \u20ac",b2d:"+ thon, maquereau, saumon surgel\u00e9, viande hach\u00e9e",b3:"70-100 \u20ac",b3d:"+ saumon frais, crevettes, b\u0153uf, avocat",b4:"100+ \u20ac",b4d:"+ gambas, magret, produits bio",
+  stores:"O\u00f9 faites-vous vos courses ?",stLidl:"Lidl / Aldi",stPingo:"Pingo Doce",stCont:"Continente",stMarket:"March\u00e9 local",stBio:"Bio (Celeiro)",
+  suppOpen:"\u00cates-vous ouvert(e) \u00e0 la suppl\u00e9mentation ?",soYes:"Oui, si c\u2019est prouv\u00e9",soMaybe:"Le minimum possible",soNo:"Non, tout par l\u2019alimentation",soAlready:"J\u2019en prends d\u00e9j\u00e0",
+  suppInfo:"La suppl\u00e9mentation n\u2019est jamais obligatoire. Mais en d\u00e9ficit calorique, certains nutriments sont difficiles \u00e0 couvrir :",suppVitD:"Vitamine D \u2014 +15% \u00e9nergie, meilleur sommeil",suppMag:"Magn\u00e9sium \u2014 +20% qualit\u00e9 sommeil, moins de stress",suppOm3:"Om\u00e9ga-3 \u2014 +10% r\u00e9cup\u00e9ration musculaire",
+  prevDiet:"Avez-vous d\u00e9j\u00e0 suivi un r\u00e9gime ?",pdNo:"Non, premi\u00e8re fois",pdYes:"Oui",prevDetail:"Si oui, lequel et r\u00e9sultats ?",prevPh:"ex: Weight Watchers 2022, perdu 5kg, repris 7kg",
+  obstacle:"Principal obstacle",obHunger:"La faim / Les envies",obTime:"Manque de temps",obBoring:"Manque de vari\u00e9t\u00e9",obSocial:"Vie sociale (restos, ap\u00e9ros)",obCost:"Le co\u00fbt",obMotiv:"Motivation sur la dur\u00e9e",
+  progStyle:"Type de programme pr\u00e9f\u00e9r\u00e9",psStrict:"Tr\u00e8s cadr\u00e9 (chaque repas d\u00e9taill\u00e9)",psFlex:"Semi-flexible (cadre + alternatives)",psFree:"Flexible (principes + recettes libres)",
+  motivL:"Qu\u2019est-ce qui vous motiverait le plus ?",m1:"R\u00e9sultats sur la balance",m2:"Me sentir mieux dans mes v\u00eatements",m3:"Plus d\u2019\u00e9nergie",m4:"Am\u00e9liorer ma sant\u00e9",m5:"Performer \u00e0 l\u2019entra\u00eenement",
+  finalNote:"Un dernier mot ?",finalPh:"Quelque chose qu\u2019on devrait savoir...",
+  onbDone:"Questionnaire envoy\u00e9 !",onbDoneDesc:"Notre \u00e9quipe va cr\u00e9er votre programme personnalis\u00e9 sous 48h.",
+  profileDone:"Profil compl\u00e9t\u00e9",confirmEmail:"V\u00e9rifiez votre email pour confirmer votre compte.",
+  optional:"optionnel",
+},
+pt:{login:"Entrar",signup:"Criar conta",email:"Email",password:"Palavra-passe",name:"Nome completo",loginBtn:"Entrar",signupBtn:"Criar conta",noAccount:"Ainda n\u00e3o tem conta?",hasAccount:"J\u00e1 tem conta?",signupLink:"Criar conta",loginLink:"Entrar",logout:"Sair",dashboard:"Painel",questionnaire:"Question\u00e1rio",program:"Meu programa",feedback:"Feedback",progress:"Progresso",welcome:"Bem-vindo",welcomeDesc:"O seu espa\u00e7o de nutri\u00e7\u00e3o personalizado",startOnb:"Iniciar question\u00e1rio",completeOnb:"Complete o question\u00e1rio para receber o seu programa personalizado.",myProgram:"Meu Programa",noProgram:"O seu programa est\u00e1 a ser criado",noProgramDesc:"Ap\u00f3s completar o question\u00e1rio, a nossa equipa criar\u00e1 o seu programa em 48h.",downloadPdf:"Transferir PDF",viewProgram:"Ver programa",weeklyFb:"Feedback semanal",fbDesc:"Preencha semanalmente para ajustar o pr\u00f3ximo programa",weight:"Peso (kg)",waistFb:"Cintura (cm)",energy:"Energia (1-5)",hunger:"Fome (1-5)",adherence:"Ades\u00e3o (%)",sleep:"Sono (h)",water:"\u00c1gua (L/d)",mood:"Humor (1-5)",notes:"Notas",cycleFb:"Fase do ciclo",sendFb:"Enviar feedback",fbSent:"Feedback registado!",progressTitle:"Minha progress\u00e3o",noData:"Sem dados ainda",weightChart:"Evolu\u00e7\u00e3o do peso",currentWeight:"Peso atual",targetWeight:"Objetivo",remaining:"Restante",weekN:"Sem",next:"Continuar",back:"Voltar",submit:"Enviar",confirmEmail:"Verifique o seu email para confirmar a conta.",optional:"opcional",
+  onb_p1:"Os seus dados",onb_p1d:"Para calcular as suas necessidades",onb_p2:"O seu objetivo",onb_p2d:"Que resultado pretende?",onb_p3:"Atividade f\u00edsica",onb_p3d:"O seu treino",onb_p4:"Sa\u00fade",onb_p4d:"Seguran\u00e7a do programa",onb_p5:"Estilo de vida",onb_p5d:"Sono, stress, ritmo",onb_p6:"H\u00e1bitos",onb_p6d:"Como come hoje",onb_p7:"Prefer\u00eancias",onb_p7d:"Gostos e cozinha",onb_p8:"Or\u00e7amento",onb_p8d:"Para adaptar os ingredientes",onb_p9:"Suplementa\u00e7\u00e3o",onb_p9d:"Opcional",onb_p10:"Motiva\u00e7\u00e3o",onb_p10d:"Para personalizar a abordagem",
+  sex:"Sexo",male:"Masculino",female:"Feminino",age:"Idade",height:"Altura (cm)",waist:"Cintura (cm)",bodyFat:"Massa gorda (%)",targetW:"Peso objetivo (kg)",timeline:"Prazo",tl1:"1-2 meses",tl2:"3-4 meses",tl3:"6 meses",tl4:"1 ano",tl5:"Sem prazo",goal:"Objetivo principal",g1:"Perda de peso",g2:"Ganho de massa",g3:"Reequil\u00edbrio",g4:"Performance",g5:"Sa\u00fade & Bem-estar",g6:"Manuten\u00e7\u00e3o",goalDetail:"Descreva numa frase",goalPh:"ex: Sentir-me bem no meu corpo / Ter mais energia",
+  emsFreq:"Sess\u00f5es EMS / semana",emsTime:"Momento da sua sess\u00e3o EMS",emsMorning:"Manh\u00e3",emsNoon:"Meio-dia",emsAfternoon:"Tarde",emsEvening:"Noite",
+  otherAct:"Outras atividades",noOther:"Apenas EMS",walk:"Caminhada",run:"Corrida",gym:"Muscula\u00e7\u00e3o",swim:"Nata\u00e7\u00e3o",yoga:"Yoga/Pilates",bike:"Bicicleta",other:"Outro",otherIntensity:"Intensidade das outras atividades",intLight:"Ligeira",intMod:"Moderada",intHigh:"Intensa",dailyAct:"Dia-a-dia fora do desporto",sed:"Sedent\u00e1rio (escrit\u00f3rio)",light:"Ligeiramente ativo",actif:"Ativo",vActif:"Muito ativo",
+  pathologies:"Patologias",pathNone:"Nenhuma",diab:"Diabetes",chol:"Colesterol",hyp:"Hipertens\u00e3o",thyr:"Tiroide",sopk:"SOP",dig:"Problemas digestivos",pathOther:"Outro",pregnant:"Est\u00e1 gr\u00e1vida ou a amamentar?",pregNo:"N\u00e3o",pregYes:"Sim",pregNA:"N\u00e3o se aplica",
+  meds:"Medicamentos",allergies:"Alergias alimentares",algNone:"Nenhuma",nuts:"Frutos secos",sea:"Marisco",egg:"Ovos",soy:"Soja",algOther:"Outro",intol:"Intol\u00e2rancias",intNone:"Nenhuma",lactL:"Lactose (ligeira)",lactS:"Lactose (severa)",gluten:"Gl\u00faten",histamine:"Histamina",fodmap:"FODMAPs",intOther:"Outro",
+  diet:"Regime espec\u00edfico",dietNone:"Nenhum",veg:"Vegetariano",vegan:"Vegan",gf:"Sem gl\u00faten",halal:"Halal",noPork:"Sem porco",cycle:"Ciclo menstrual",cycReg:"Regular (~28 dias)",cycIrreg:"Irregular",cycPeri:"Perimenopausa",cycMeno:"Menopausa",cycNA:"N\u00e3o se aplica",cycNo:"Prefiro n\u00e3o responder",
+  sleepH:"Sono (horas)",sleepQ:"Qualidade do sono",sqGood:"Bom",sqMed:"M\u00e9dio",sqBad:"Mau (ins\u00f3nia)",stress:"N\u00edvel de stress",stressDesc:"1 = Muito relaxado | 5 = Stress moderado | 10 = Exausto, ansioso",workSched:"Hor\u00e1rio de trabalho",wsClass:"Dia cl\u00e1ssico",wsLong:"Hor\u00e1rios longos",wsShift:"Alternados",wsNight:"Noite",wsRemote:"Teletrabalho",wsVar:"Vari\u00e1vel",mealTimes:"Hor\u00e1rios habituais das refei\u00e7\u00f5es",mealPh:"ex: Peq-almo\u00e7o 7h30, Almo\u00e7o 13h, Jantar 20h30",
+  mealsDay:"Refei\u00e7\u00f5es por dia",breakfast:"Pequeno-almo\u00e7o",bfYes:"Sim, sempre",bfSome:"\u00c0s vezes",bfNo:"N\u00e3o, nunca",snacking:"Petiscos entre refei\u00e7\u00f5es",snNever:"Nunca",snSome:"\u00c0s vezes",snOften:"Frequentemente",snEvening:"Sobretudo \u00e0 noite",snackType:"Tipo de petisco",sweet:"Doce",salty:"Salgado",both:"Ambos",healthy:"Saud\u00e1vel",alcohol:"\u00c1lcool",alcNo:"Nunca",alcRare:"Raramente",alcMod:"Moderado",alcReg:"Regular",coffee:"Caf\u00e9s / ch\u00e1s por dia",cof0:"0",cof1:"1-2",cof2:"3-4",cof3:"5+",sodas:"Bebidas a\u00e7ucaradas / refrigerantes",sodNo:"Nunca",sodRare:"Ocasional",sodReg:"Regular",sodDaily:"Di\u00e1rio",fruitsVeg:"Por\u00e7\u00f5es de fruta e legumes por dia",fv1:"0-1",fv2:"2-3",fv3:"4-5",fv4:"5+",waterDay:"\u00c1gua por dia",supplements:"Suplementos atuais",suppPh:"Nenhum",mealsOut:"Refei\u00e7\u00f5es fora por semana",
+  dislikes:"Alimentos que DETESTA",dislikesPh:"ex: espinafres, peixe cru...",dislikesD:"Nunca colocar no programa",likes:"Alimentos que ADORA",likesPh:"ex: frango, massa, abacate...",likesD:"Colocar o m\u00e1ximo!",cuisines:"Cozinhas preferidas",cuMed:"Mediterr\u00e2nea",cuPT:"Portuguesa",cuFR:"Francesa",cuAsia:"Asi\u00e1tica",cuMex:"Mexicana",cuUS:"Americana",cookTime:"Tempo para cozinhar por refei\u00e7\u00e3o",ct1:"5-10 min",ct2:"15-20 min",ct3:"20-30 min",ct4:"30+ min",cookLevel:"N\u00edvel na cozinha",clBeg:"Iniciante",clMid:"Interm\u00e9dio",clAdv:"\u00c0 vontade",clChef:"Chef em casa",cookFor:"Cozinha para",cf1:"1 pessoa",cf2:"2 pessoas",cf3:"3-4 (fam\u00edlia)",mealPrep:"Meal prep ao fim de semana?",mpYes:"Sim, motivado(a)!",mpSimple:"Sim, se simples",mpNo:"N\u00e3o, cozinho cada dia",equip:"Equipamento cozinha",eqFour:"Forno",eqMicro:"Micro-ondas",eqBlend:"Liquidificador",eqAir:"Airfryer",eqBasic:"B\u00e1sico",eqSteam:"Cozedor a vapor",eqPressure:"Panela de press\u00e3o",
+  budgetL:"Or\u00e7amento alimenta\u00e7\u00e3o / semana (em Portugal)",b1:"30-50 \u20ac",b1d:"Ovos, lentilhas, sardinhas, frango",b2:"50-70 \u20ac",b2d:"+ atum, cavala, salm\u00e3o congelado",b3:"70-100 \u20ac",b3d:"+ salm\u00e3o fresco, camar\u00f5es, vaca",b4:"100+ \u20ac",b4d:"+ gambas, magret, bio",stores:"Onde faz compras?",stLidl:"Lidl / Aldi",stPingo:"Pingo Doce",stCont:"Continente",stMarket:"Mercado local",stBio:"Bio (Celeiro)",
+  suppOpen:"Est\u00e1 aberto(a) \u00e0 suplementa\u00e7\u00e3o?",soYes:"Sim, se comprovado",soMaybe:"M\u00ednimo poss\u00edvel",soNo:"N\u00e3o, tudo pela alimenta\u00e7\u00e3o",soAlready:"J\u00e1 tomo suplementos",suppInfo:"A suplementa\u00e7\u00e3o nunca \u00e9 obrigat\u00f3ria. Mas em d\u00e9ficit cal\u00f3rico:",suppVitD:"Vitamina D \u2014 +15% energia",suppMag:"Magn\u00e9sio \u2014 +20% qualidade sono",suppOm3:"\u00d3mega-3 \u2014 +10% recupera\u00e7\u00e3o",
+  prevDiet:"J\u00e1 seguiu um regime?",pdNo:"N\u00e3o, primeira vez",pdYes:"Sim",prevDetail:"Se sim, qual e resultados?",prevPh:"ex: Dukan 2020",obstacle:"Principal obst\u00e1culo",obHunger:"Fome / Desejos",obTime:"Falta de tempo",obBoring:"Monotonia",obSocial:"Vida social",obCost:"Custo",obMotiv:"Motiva\u00e7\u00e3o",progStyle:"Tipo de programa preferido",psStrict:"Muito estruturado",psFlex:"Semi-flex\u00edvel",psFree:"Flex\u00edvel",motivL:"O que o motivaria mais?",m1:"Resultados na balan\u00e7a",m2:"Sentir-me melhor na roupa",m3:"Mais energia",m4:"Melhorar sa\u00fade",m5:"Performance no treino",finalNote:"Uma \u00faltima palavra?",finalPh:"Algo que devemos saber...",onbDone:"Question\u00e1rio enviado!",profileDone:"Perfil completo"},
+en:{login:"Log in",signup:"Create account",email:"Email",password:"Password",name:"Full name",loginBtn:"Sign in",signupBtn:"Create my account",noAccount:"No account yet?",hasAccount:"Already have one?",signupLink:"Sign up",loginLink:"Sign in",logout:"Log out",dashboard:"Dashboard",questionnaire:"Questionnaire",program:"My program",feedback:"Feedback",progress:"Progress",welcome:"Welcome",welcomeDesc:"Your personalized nutrition space",startOnb:"Start the questionnaire",completeOnb:"Complete your nutritional profile to receive your personalized program.",myProgram:"My Program",noProgram:"Your program is being created",noProgramDesc:"Once the questionnaire is complete, our team will create your program within 48h.",downloadPdf:"Download PDF",viewProgram:"View program",weeklyFb:"Weekly feedback",fbDesc:"Fill in weekly to help us adjust your next program",weight:"Weight (kg)",waistFb:"Waist (cm)",energy:"Energy (1-5)",hunger:"Hunger (1-5)",adherence:"Adherence (%)",sleep:"Sleep (h)",water:"Water (L/d)",mood:"Mood (1-5)",notes:"Notes / How you feel",cycleFb:"Cycle phase",sendFb:"Send feedback",fbSent:"Feedback recorded!",progressTitle:"My progress",noData:"No data yet",weightChart:"Weight over time",currentWeight:"Current weight",targetWeight:"Target",remaining:"Remaining",weekN:"Wk",next:"Continue",back:"Back",submit:"Submit",confirmEmail:"Check your email to confirm your account.",optional:"optional",
+  onb_p1:"Your details",onb_p1d:"To calculate your needs",onb_p2:"Your goal",onb_p2d:"What result are you aiming for?",onb_p3:"Physical activity",onb_p3d:"Your training routine",onb_p4:"Health",onb_p4d:"Program safety",onb_p5:"Lifestyle",onb_p5d:"Sleep, stress, daily rhythm",onb_p6:"Current habits",onb_p6d:"How you eat today",onb_p7:"Food preferences",onb_p7d:"Tastes and cooking",onb_p8:"Budget",onb_p8d:"To adapt the ingredients",onb_p9:"Supplements",onb_p9d:"Optional \u2014 your choice",onb_p10:"Motivation",onb_p10d:"To personalize the approach",
+  sex:"Sex",male:"Male",female:"Female",age:"Age",height:"Height (cm)",waist:"Waist (cm)",bodyFat:"Body fat (%)",targetW:"Target weight (kg)",timeline:"Timeline",tl1:"1-2 months",tl2:"3-4 months",tl3:"6 months",tl4:"1 year",tl5:"No deadline",goal:"Main goal",g1:"Weight loss",g2:"Muscle gain",g3:"Rebalancing",g4:"Performance",g5:"Health & Wellbeing",g6:"Maintenance",goalDetail:"Describe your goal in one sentence",goalPh:"ex: Feel great in my body / Lose belly fat / Have more energy",
+  emsFreq:"EMS sessions per week",emsTime:"When do you do your EMS session?",emsMorning:"Morning",emsNoon:"Midday",emsAfternoon:"Afternoon",emsEvening:"Evening",
+  otherAct:"Other physical activities",noOther:"EMS only",walk:"Walking",run:"Running",gym:"Weight training",swim:"Swimming",yoga:"Yoga/Pilates",bike:"Cycling",other:"Other",otherIntensity:"Intensity of other activities",intLight:"Light",intMod:"Moderate",intHigh:"Intense",dailyAct:"Daily routine (outside sport)",sed:"Sedentary (desk job)",light:"Slightly active",actif:"Active (on feet often)",vActif:"Very active (physical work)",
+  pathologies:"Diagnosed conditions",pathNone:"None",diab:"Diabetes",chol:"High cholesterol",hyp:"Hypertension",thyr:"Thyroid issues",sopk:"PCOS",dig:"Digestive issues",pathOther:"Other",pregnant:"Are you pregnant or breastfeeding?",pregNo:"No",pregYes:"Yes",pregNA:"N/A",
+  meds:"Regular medications",allergies:"Food allergies",algNone:"None",nuts:"Tree nuts",sea:"Seafood",egg:"Eggs",soy:"Soy",algOther:"Other",intol:"Intolerances",intNone:"None",lactL:"Lactose (mild)",lactS:"Lactose (severe)",gluten:"Gluten",histamine:"Histamine",fodmap:"FODMAPs",intOther:"Other",
+  diet:"Specific diet",dietNone:"None",veg:"Vegetarian",vegan:"Vegan",gf:"Gluten-free",halal:"Halal",noPork:"No pork",cycle:"Menstrual cycle",cycReg:"Regular (~28 days)",cycIrreg:"Irregular",cycPeri:"Perimenopause",cycMeno:"Menopause",cycNA:"N/A",cycNo:"Prefer not to say",
+  sleepH:"Sleep (hours)",sleepQ:"Sleep quality",sqGood:"Good (I sleep well)",sqMed:"Medium (frequent waking)",sqBad:"Poor (insomnia)",stress:"Stress level",stressDesc:"1 = Very relaxed, calm | 5 = Moderate, manageable | 10 = Exhausted, anxious",workSched:"Work schedule",wsClass:"Standard day (8am-6pm)",wsLong:"Long hours",wsShift:"Shift work",wsNight:"Night shifts",wsRemote:"Remote work",wsVar:"Variable",mealTimes:"Usual meal times",mealPh:"ex: Breakfast 7:30am, Lunch 1pm, Dinner 8:30pm",
+  mealsDay:"Meals per day",breakfast:"Breakfast",bfYes:"Yes, always",bfSome:"Sometimes",bfNo:"Never",snacking:"Snacking between meals",snNever:"Never",snSome:"Sometimes (2-3x/wk)",snOften:"Often (daily)",snEvening:"Mostly in the evening",snackType:"Type of snacks",sweet:"Sweet (biscuits, chocolate)",salty:"Salty (chips, cheese)",both:"Both",healthy:"Healthy (fruit, nuts)",alcohol:"Alcohol consumption",alcNo:"Never",alcRare:"Rarely (1-2/month)",alcMod:"Moderate (2-3/week)",alcReg:"Regular (1+/day)",coffee:"Coffees / teas per day",cof0:"0",cof1:"1-2",cof2:"3-4",cof3:"5+",sodas:"Sugary drinks / sodas",sodNo:"Never",sodRare:"Occasional",sodReg:"Regular",sodDaily:"Daily",fruitsVeg:"Portions of fruit & veg per day",fv1:"0-1",fv2:"2-3",fv3:"4-5",fv4:"5+",waterDay:"Water per day",supplements:"Current supplements",suppPh:"None",mealsOut:"Meals out per week",
+  dislikes:"Foods you HATE",dislikesPh:"ex: spinach, raw fish, cauliflower...",dislikesD:"Never include these",likes:"Foods you LOVE",likesPh:"ex: chicken, pasta, avocado...",likesD:"Include as many as possible!",cuisines:"What types of food do you enjoy?",cuMed:"Mediterranean",cuPT:"Portuguese",cuFR:"French",cuAsia:"Asian",cuMex:"Mexican",cuUS:"American",cookTime:"Cooking time per meal",ct1:"5-10 min",ct2:"15-20 min",ct3:"20-30 min",ct4:"30+ min",cookLevel:"Cooking skill level",clBeg:"Beginner",clMid:"Intermediate",clAdv:"Comfortable",clChef:"Home chef",cookFor:"Cooking for",cf1:"Just me",cf2:"2 people",cf3:"3-4 (family)",mealPrep:"Weekend meal prep?",mpYes:"Yes, let\u2019s go!",mpSimple:"Yes, if simple",mpNo:"No, I cook daily",equip:"Kitchen equipment",eqFour:"Oven",eqMicro:"Microwave",eqBlend:"Blender",eqAir:"Airfryer",eqBasic:"Basic (stovetop + pots)",eqSteam:"Steamer",eqPressure:"Pressure cooker",
+  budgetL:"Weekly food budget (in Portugal)",b1:"\u20ac30-50",b1d:"Eggs, lentils, sardines, chicken, seasonal veg",b2:"\u20ac50-70",b2d:"+ tuna, mackerel, frozen salmon, ground beef",b3:"\u20ac70-100",b3d:"+ fresh salmon, shrimp, beef, avocado",b4:"\u20ac100+",b4d:"+ fresh tuna, prawns, duck, organic",stores:"Where do you shop?",stLidl:"Lidl / Aldi",stPingo:"Pingo Doce",stCont:"Continente",stMarket:"Local market",stBio:"Organic (Celeiro)",
+  suppOpen:"Would you consider taking supplements?",soYes:"Yes, if proven effective",soMaybe:"As few as possible",soNo:"No, food only",soAlready:"I already take some",suppInfo:"Supplements are never mandatory. But in a caloric deficit, some nutrients are harder to cover:",suppVitD:"Vitamin D \u2014 +15% energy, better sleep",suppMag:"Magnesium \u2014 +20% sleep quality, less stress",suppOm3:"Omega-3 \u2014 +10% muscle recovery",
+  prevDiet:"Have you followed a diet before?",pdNo:"No, first time",pdYes:"Yes",prevDetail:"If yes, which one and results?",prevPh:"ex: Keto 2020, lost 8kg regained 10kg",obstacle:"Main obstacle",obHunger:"Hunger / Cravings",obTime:"Lack of time",obBoring:"Monotony / Boredom",obSocial:"Social life (restaurants, drinks)",obCost:"Cost",obMotiv:"Staying motivated",progStyle:"Preferred program type",psStrict:"Very structured (every meal detailed)",psFlex:"Semi-flexible (framework + alternatives)",psFree:"Flexible (principles + free recipes)",motivL:"What would motivate you most?",m1:"Seeing results on the scale",m2:"Feeling better in my clothes",m3:"Having more energy",m4:"Improving my health",m5:"Better training performance",finalNote:"Any last words?",finalPh:"Anything we should know...",onbDone:"Questionnaire submitted!",profileDone:"Profile complete"}
+};
+
+function t(){return L[state.lang]||L.fr}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+async function doLogin(){
+  var email=document.getElementById("auth-email").value;
+  var pw=document.getElementById("auth-pw").value;
+  if(!email||!pw)return;
+  var res=await sb.auth.signInWithPassword({email:email,password:pw});
+  if(res.error){showAuthError(res.error.message);return}
+  await loadUser();
+}
+
+async function doSignup(){
+  var email=document.getElementById("auth-email").value;
+  var pw=document.getElementById("auth-pw").value;
+  var name=document.getElementById("auth-name").value;
+  if(!email||!pw||!name)return;
+  var res=await sb.auth.signUp({email:email,password:pw});
+  if(res.error){showAuthError(res.error.message);return}
+  if(res.data.user){
+    await sb.from("client_accounts").insert({id:res.data.user.id,email:email,name:name,language:state.lang});
+    showAuthSuccess(t().confirmEmail);
+  }
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  state.user=null;state.account=null;state.profile=null;state.feedbacks=[];
+  render();
+}
+
+function showAuthError(msg){var el=document.getElementById("auth-error");if(el){el.textContent=msg;el.style.display="block"}}
+function showAuthSuccess(msg){var el=document.getElementById("auth-success");if(el){el.textContent=msg;el.style.display="block"}}
+
+// ═══════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════
+async function loadUser(){
+  var sess=await sb.auth.getSession();
+  if(!sess.data.session){state.loading=false;render();return}
+  state.user=sess.data.session.user;
+  var acc=await sb.from("client_accounts").select("*").eq("id",state.user.id).single();
+  if(acc.data){state.account=acc.data;state.lang=acc.data.language||"fr"}
+  if(state.account&&state.account.nutrition_profile_id){
+    var prof=await sb.from("nutrition_profiles").select("*").eq("id",state.account.nutrition_profile_id).single();
+    if(prof.data)state.profile=prof.data;
+  }
+  var fb=await sb.from("weekly_feedbacks").select("*").eq("client_id",state.user.id).order("week_number",{ascending:true});
+  if(fb.data)state.feedbacks=fb.data;
+  state.loading=false;
+  render();
+}
+
+// ═══════════════════════════════════════════
+// ONBOARDING (questionnaire steps)
+// ═══════════════════════════════════════════
+function onbSet(k,v){state.onbData[k]=v;render()}
+function onbToggle(k,v){
+  if(!state.onbData[k])state.onbData[k]=[];
+  var i=state.onbData[k].indexOf(v);
+  if(i===-1)state.onbData[k].push(v);else state.onbData[k].splice(i,1);
+  render();
+}
+function onbNext(){state.onbStep++;render();window.scrollTo(0,0)}
+function onbBack(){state.onbStep--;render();window.scrollTo(0,0)}
+
+async function onbSubmit(){
+  var d=state.onbData;
+  var id=uid();
+  d.id=id;d.language=state.lang;d.status="new";
+  var dbData={};
+  Object.keys(d).forEach(function(k){dbData[k]=Array.isArray(d[k])?d[k].join(", "):d[k]});
+  var res=await sb.from("nutrition_profiles").insert(dbData);
+  if(res.error){alert("Erreur: "+res.error.message);return}
+  await sb.from("client_accounts").update({onboarding_done:true,nutrition_profile_id:id}).eq("id",state.user.id);
+  state.account.onboarding_done=true;state.account.nutrition_profile_id=id;
+  state.page="dashboard";state.onbStep=0;
+  showToast(t().onbDone);
+  render();
+}
+
+// ═══════════════════════════════════════════
+// FEEDBACK
+// ═══════════════════════════════════════════
+async function submitFeedback(){
+  var wk=state.feedbacks.length+1;
+  var fb={
+    id:uid(),client_id:state.user.id,week_number:wk,
+    weight:parseFloat(document.getElementById("fb-weight").value)||null,
+    waist:parseFloat(document.getElementById("fb-waist").value)||null,
+    energy:parseInt(document.getElementById("fb-energy").value)||null,
+    hunger:parseInt(document.getElementById("fb-hunger").value)||null,
+    adherence:parseInt(document.getElementById("fb-adherence").value)||null,
+    sleep_hours:parseFloat(document.getElementById("fb-sleep").value)||null,
+    water_liters:parseFloat(document.getElementById("fb-water").value)||null,
+    mood:parseInt(document.getElementById("fb-mood").value)||null,
+    notes:document.getElementById("fb-notes").value||"",
+    cycle_phase:document.getElementById("fb-cycle")?document.getElementById("fb-cycle").value:""
+  };
+  var res=await sb.from("weekly_feedbacks").insert(fb);
+  if(res.error){alert("Erreur: "+res.error.message);return}
+  state.feedbacks.push(fb);
+  showToast(t().fbSent);
+  render();
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+function showToast(msg){
+  state.toast=msg;render();
+  setTimeout(function(){state.toast="";render()},3000);
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function render(){
+  var root=document.getElementById("root");
+  if(state.loading){root.innerHTML='<div class="auth-wrap"><div style="text-align:center"><div class="logo">BODY<em>FIT</em></div><p style="margin-top:8px;color:var(--text3)">Chargement...</p></div></div>';return}
+  if(!state.user){root.innerHTML=renderAuth();return}
+  if(state.account&&!state.account.onboarding_done){root.innerHTML=renderOnboarding();return}
+  root.innerHTML=renderApp();
+}
+
+// ─── AUTH SCREEN ───
+function renderAuth(){
+  var l=t();var mode=state.authMode;
+  return '<div class="auth-wrap"><div class="auth-card"><div class="auth-header">'+
+    '<div class="logo">BODY<em>FIT</em></div><div class="logo-sub">EMS Studio</div></div>'+
+    '<div class="auth-body">'+
+    '<div class="auth-lang">'+
+    '<button class="lang-btn'+(state.lang==="fr"?" on":"")+'" onclick="state.lang=\'fr\';render()">FR</button>'+
+    '<button class="lang-btn'+(state.lang==="pt"?" on":"")+'" onclick="state.lang=\'pt\';render()">PT</button>'+
+    '<button class="lang-btn'+(state.lang==="en"?" on":"")+'" onclick="state.lang=\'en\';render()">EN</button></div>'+
+    '<div class="auth-title">'+(mode==="login"?l.login:l.signup)+'</div>'+
+    '<div class="auth-desc">'+(mode==="login"?"":l.welcomeDesc)+'</div>'+
+    '<div id="auth-error" class="auth-error"></div>'+
+    '<div id="auth-success" class="auth-success"></div>'+
+    (mode==="signup"?'<div class="field"><div class="label">'+l.name+' <span class="req">*</span></div><input class="input" id="auth-name" placeholder="Sofia Almeida"/></div>':'')+
+    '<div class="field"><div class="label">'+l.email+' <span class="req">*</span></div><input class="input" id="auth-email" type="email" placeholder="votre@email.com"/></div>'+
+    '<div class="field"><div class="label">'+l.password+' <span class="req">*</span></div><input class="input" id="auth-pw" type="password" placeholder="Min. 6 caracteres" onkeydown="if(event.key===\'Enter\'){'+(mode==="login"?"doLogin()":"doSignup()")+'}"/></div>'+
+    '<button class="btn btn-gold" onclick="'+(mode==="login"?"doLogin()":"doSignup()")+'">'+(mode==="login"?l.loginBtn:l.signupBtn)+'</button>'+
+    '<div class="auth-toggle">'+(mode==="login"?l.noAccount+" <a onclick=\"state.authMode='signup';render()\">"+l.signupLink+"</a>":l.hasAccount+" <a onclick=\"state.authMode='login';render()\">"+l.loginLink+"</a>")+'</div>'+
+    '</div></div></div>';
+}
+
+// ─── ONBOARDING ───
+function renderOnboarding(){
+  var l=t();var d=state.onbData;var step=state.onbStep;
+  var steps=buildOnbSteps(l,d);var total=steps.length;
+  var pct=Math.round((step+1)/total*100);
+
+  var h='<div style="max-width:640px;margin:0 auto;padding:20px 16px 60px">'+
+    '<div style="text-align:center;padding:16px 0"><div class="logo">BODY<em>FIT</em></div></div>'+
+    '<div class="onb-progress"><div class="onb-fill" style="width:'+pct+'%"></div></div>'+
+    '<div class="onb-step">'+(step+1)+' / '+total+'</div>'+
+    '<div class="fade-in">'+steps[step]+'</div>'+
+    '<div class="btn-row">';
+  if(step>0) h+='<button class="btn btn-outline" onclick="onbBack()">'+l.back+'</button>';
+  if(step<total-1) h+='<button class="btn btn-gold" onclick="onbNext()">'+l.next+'</button>';
+  else h+='<button class="btn btn-gold" onclick="onbSubmit()">'+l.submit+' ✓</button>';
+  h+='</div></div>';
+  return h;
+}
+
+function buildOnbSteps(l,d){
+  var steps=[];
+
+  // 1. Données
+  steps.push(onbHead("📊",l.onb_p1,l.onb_p1d)+
+    fieldI(l.name,"name",d)+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    choicesSingle("sex",[l.male,l.female],l.sex,d)+
+    fieldI(l.age,"age",d,"number")+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    fieldI(l.weight,"weight",d,"number","kg")+fieldI(l.height,"height",d,"number","cm")+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    fieldI(l.waist,"waist",d,"number","cm")+fieldI(l.bodyFat,"body_fat",d,"number","%")+'</div>'+
+    fieldI(l.targetW,"target_weight",d,"number")+
+    choicesSingle("timeline",[l.tl1,l.tl2,l.tl3,l.tl4,l.tl5],l.timeline,d)
+  );
+
+  // 2. Objectif
+  steps.push(onbHead("🎯",l.onb_p2,l.onb_p2d)+
+    choicesSingle("goal",[l.g1,l.g2,l.g3,l.g4,l.g5,l.g6],l.goal,d)+
+    fieldTA(l.goalDetail,"goal_detail",d)
+  );
+
+  // 3. Activité
+  steps.push(onbHead("💪",l.onb_p3,l.onb_p3d)+
+    choicesSingle("ems_frequency",["1x/sem","2x/sem"],l.emsFreq,d)+
+    choicesSingle("ems_time",[l.emsMorning||"Matin",l.emsNoon||"Midi",l.emsAfternoon||"Apr\u00e8s-midi",l.emsEvening||"Soir"],l.emsTime||"Moment de la s\u00e9ance EMS",d)+
+    choicesMulti("other_activities",[l.noOther,l.walk,l.run,l.gym,l.swim,l.yoga,l.bike,l.other],l.otherAct,d)+
+    choicesSingle("other_intensity",[l.intLight||"L\u00e9g\u00e8re",l.intMod||"Mod\u00e9r\u00e9e",l.intHigh||"Intense"],l.otherIntensity||"Intensit\u00e9 des autres activit\u00e9s",d)+
+    choicesSingle("daily_activity",[l.sed,l.light,l.actif,l.vActif],l.dailyAct,d)
+  );
+
+  // 4. Santé
+  steps.push(onbHead("🏥",l.onb_p4,l.onb_p4d)+
+    choicesMulti("pathologies",[l.pathNone,l.diab,l.chol,l.hyp,l.thyr,l.sopk,l.dig,l.pathOther||"Autre"],l.pathologies,d)+
+    choicesSingle("pregnant",[l.pregNo||"Non",l.pregYes||"Oui",l.pregNA||"N/A"],l.pregnant||"Enceinte ou allaitante ?",d)+
+    fieldI(l.meds,"medications",d)+
+    choicesMulti("allergies",[l.algNone,l.nuts,l.sea,l.egg,l.soy,l.algOther||"Autre"],l.allergies,d)+
+    choicesMulti("intolerances",[l.intNone,l.lactL,l.lactS,l.gluten,l.histamine||"Histamine",l.fodmap||"FODMAPs",l.intOther||"Autre"],l.intol,d)+
+    choicesMulti("diet_type",[l.dietNone,l.veg,l.vegan,l.gf,l.halal,l.noPork],l.diet,d)+
+    choicesSingle("menstrual_cycle",[l.cycReg,l.cycIrreg,l.cycPeri||"P\u00e9rim\u00e9nopause",l.cycMeno,l.cycNA,l.cycNo||"Pr\u00e9f\u00e8re ne pas r\u00e9pondre"],l.cycle,d)
+  );
+
+  // 5. Mode de vie
+  steps.push(onbHead("🌙",l.onb_p5,l.onb_p5d)+
+    choicesSingle("sleep_hours",["<5h","5-6h","6-7h","7-8h","8h+"],l.sleepH,d)+
+    choicesSingle("sleep_quality",[l.sqGood,l.sqMed,l.sqBad],l.sleepQ,d)+
+    '<div class="field"><div class="label">'+l.stress+'</div><div style="font-size:10px;color:var(--text3);margin-bottom:6px">'+(l.stressDesc||"1 = Tr\u00e8s d\u00e9tendu | 5 = Mod\u00e9r\u00e9 | 10 = \u00c9puis\u00e9")+'</div></div>'+
+    scaleF("stress_level",1,10,"",d)+
+    choicesSingle("work_schedule",[l.wsClass,l.wsLong,l.wsShift,l.wsNight,l.wsRemote,l.wsVar||"Variable"],l.workSched,d)+
+    fieldI(l.mealTimes,"meal_times",d,null,l.mealPh)
+  );
+
+  // 6. Habitudes
+  steps.push(onbHead("🍽",l.onb_p6,l.onb_p6d)+
+    choicesSingle("meals_per_day",["2","3","4","5+"],l.mealsDay,d)+
+    choicesSingle("breakfast",[l.bfYes,l.bfSome,l.bfNo],l.breakfast,d)+
+    choicesSingle("snacking",[l.snNever,l.snSome,l.snOften,l.snEvening],l.snacking,d)+
+    choicesSingle("snack_type",[l.sweet,l.salty,l.both,l.healthy],l.snackType,d)+
+    choicesSingle("alcohol",[l.alcNo,l.alcRare,l.alcMod,l.alcReg],l.alcohol,d)+
+    choicesSingle("coffee",[l.cof0||"0",l.cof1||"1-2",l.cof2||"3-4",l.cof3||"5+"],l.coffee||"Caf\u00e9s / th\u00e9s par jour",d)+
+    choicesSingle("sodas",[l.sodNo||"Jamais",l.sodRare||"Occasionnel",l.sodReg||"R\u00e9gulier",l.sodDaily||"Quotidien"],l.sodas||"Boissons sucr\u00e9es / sodas",d)+
+    choicesSingle("fruits_veg",[l.fv1||"0-1",l.fv2||"2-3",l.fv3||"4-5",l.fv4||"5+"],l.fruitsVeg||"Fruits et l\u00e9gumes par jour",d)+
+    choicesSingle("water_intake",["<1L","1-1.5L","1.5-2L","2L+"],l.waterDay,d)+
+    choicesSingle("meals_outside",["0-1","2-3","4-5","6+"],l.mealsOut,d)
+  );
+
+  // 7. Préférences
+  steps.push(onbHead("👨‍🍳",l.onb_p7,l.onb_p7d)+
+    fieldTA(l.dislikes,"dislikes",d,l.dislikesPh)+
+    fieldTA(l.likes,"likes",d,l.likesPh)+
+    choicesMulti("cuisine_prefs",[l.cuMed,l.cuPT,l.cuFR,l.cuAsia,l.cuMex,l.cuUS],l.cuisines,d)+
+    choicesSingle("cook_time",[l.ct1,l.ct2,l.ct3,l.ct4],l.cookTime,d)+
+    choicesSingle("cook_level",[l.clBeg||"D\u00e9butant",l.clMid||"Interm\u00e9diaire",l.clAdv||"\u00c0 l\u2019aise",l.clChef||"Chef \u00e0 la maison"],l.cookLevel||"Niveau en cuisine",d)+
+    choicesSingle("cook_for",[l.cf1,l.cf2,l.cf3],l.cookFor,d)+
+    choicesSingle("meal_prep",[l.mpYes,l.mpSimple,l.mpNo],l.mealPrep,d)+
+    choicesMulti("equipment",[l.eqFour,l.eqMicro,l.eqBlend,l.eqAir,l.eqBasic,l.eqSteam||"Cuiseur vapeur",l.eqPressure||"Cocotte-minute"],l.equip,d)
+  );
+
+  // 8. Budget
+  steps.push(onbHead("💰",l.onb_p8,l.onb_p8d)+
+    budgetCards("weekly_budget",[[l.b1,l.b1d,"🥚"],[l.b2,l.b2d,"🐟"],[l.b3,l.b3d,"🥑"],[l.b4,l.b4d,"🦐"]],l.budgetL,d)+
+    choicesMulti("grocery_stores",[l.stLidl,l.stPingo,l.stCont,l.stMarket],l.stores,d)
+  );
+
+  // 9. Supplémentation
+  steps.push(onbHead("💊",l.onb_p9,l.onb_p9d)+
+    '<div class="info-box info-gold">'+(l.suppInfo||"La suppl\u00e9mentation n\u2019est jamais obligatoire.")+'<br><br>\u2022 '+(l.suppVitD||"Vitamine D \u2014 +15% \u00e9nergie")+'<br>\u2022 '+(l.suppMag||"Magn\u00e9sium \u2014 +20% sommeil")+'<br>\u2022 '+(l.suppOm3||"Om\u00e9ga-3 \u2014 +10% r\u00e9cup\u00e9ration")+'</div>'+
+    choicesSingle("open_to_supplements",[l.soYes,l.soMaybe,l.soNo,l.soAlready],l.suppOpen,d)
+  );
+
+  // 10. Motivation
+  steps.push(onbHead("🔥",l.onb_p10,l.onb_p10d)+
+    choicesSingle("previous_diet",[l.pdNo,l.pdYes],l.prevDiet,d)+
+    fieldI(l.prevDetail,"previous_diet_detail",d)+
+    choicesMulti("main_obstacle",[l.obHunger,l.obTime,l.obBoring,l.obSocial,l.obCost,l.obMotiv],l.obstacle,d)+
+    choicesSingle("program_style",[l.psStrict,l.psFlex,l.psFree],l.progStyle,d)+
+    choicesMulti("motivation",[l.m1,l.m2,l.m3,l.m4,l.m5],l.motivL,d)+
+    fieldTA(l.finalNote,"final_note",d)+
+    '<div class="field" style="margin-top:16px;padding:14px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border)">'+
+    '<div style="display:flex;gap:10px;align-items:flex-start;cursor:pointer" onclick="onbSet(\'rgpd\',state.onbData.rgpd?\'\':\'yes\')">'+
+    '<div style="width:20px;height:20px;border:2px solid '+(d.rgpd?'var(--gold)':'var(--border)')+';border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:'+(d.rgpd?'var(--gold)':'var(--bg2)')+'">'+
+    (d.rgpd?'<span style="color:white;font-size:12px;font-weight:bold">\u2713</span>':'')+
+    '</div>'+
+    '<div style="font-size:11px;color:var(--text2);line-height:1.5">'+(l.rgpdText||"J\u2019accepte que mes donn\u00e9es personnelles et de sant\u00e9 soient collect\u00e9es et trait\u00e9es par Bodyfit EMS Studio dans le cadre de la cr\u00e9ation de mon programme nutritionnel personnalis\u00e9. Mes donn\u00e9es sont confidentielles et ne seront jamais partag\u00e9es avec des tiers. Je peux demander la suppression de mes donn\u00e9es \u00e0 tout moment en contactant le studio.")+'</div>'+
+    '</div></div>'
+  );
+
+  return steps;
+}
+
+// Onboarding field helpers
+function onbHead(icon,title,desc){return '<div class="onb-icon">'+icon+'</div><div class="onb-section">'+title+'</div><div class="onb-desc">'+desc+'</div>'}
+function fieldI(label,key,d,type,ph){
+  return '<div class="field"><div class="label">'+label+'</div><input class="input" type="'+(type||"text")+'" placeholder="'+(ph||"")+'" value="'+(d[key]||"")+'" onchange="onbSet(\''+key+'\',this.value)"/></div>';
+}
+function fieldTA(label,key,d,ph){
+  return '<div class="field"><div class="label">'+label+'</div><textarea class="textarea" placeholder="'+(ph||"")+'" onchange="onbSet(\''+key+'\',this.value)">'+(d[key]||"")+'</textarea></div>';
+}
+function choicesSingle(key,opts,label,d){
+  var h='<div class="field"><div class="label">'+label+'</div><div class="choices">';
+  opts.forEach(function(o){h+='<div class="choice'+(d[key]===o?" on":"")+'" onclick="onbSet(\''+key+'\',\''+o.replace(/'/g,"\\'")+'\')">'+o+'</div>'});
+  return h+'</div></div>';
+}
+function choicesMulti(key,opts,label,d){
+  var h='<div class="field"><div class="label">'+label+'</div><div class="choices">';
+  opts.forEach(function(o){
+    var sel=d[key]&&d[key].indexOf(o)!==-1;
+    h+='<div class="choice'+(sel?" on":"")+'" onclick="onbToggle(\''+key+'\',\''+o.replace(/'/g,"\\'")+'\')">'+o+'</div>'});
+  return h+'</div></div>';
+}
+function scaleF(key,min,max,label,d){
+  var h='<div class="field"><div class="label">'+label+'</div><div class="scale-row">';
+  for(var i=min;i<=max;i++){h+='<div class="scale-dot'+(d[key]===i?" on":"")+'" onclick="onbSet(\''+key+'\','+i+')">'+i+'</div>'}
+  return h+'</div></div>';
+}
+function budgetCards(key,opts,label,d){
+  var h='<div class="field"><div class="label">'+label+'</div>';
+  opts.forEach(function(o){
+    h+='<div class="budget-opt'+(d[key]===o[0]?" on":"")+'" onclick="onbSet(\''+key+'\',\''+o[0]+'\')"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:20px">'+o[2]+'</span><div><strong>'+o[0]+'</strong><span>'+o[1]+'</span></div></div></div>'});
+  return h+'</div>';
+}
+
+// ─── MAIN APP ───
+function renderApp(){
+  var l=t();var a=state.account;var p=state.page;
+  var name=(a&&a.name)?a.name.split(" ")[0]:"";
+  var initial=(a&&a.name)?a.name[0]:"?";
+
+  // Sidebar
+  var sb='<aside class="sidebar'+(state.sidebarOpen?" open":"")+'">'+
+    '<div class="sb-logo"><div class="logo" style="font-size:22px">BODY<em>FIT</em></div></div>'+
+    '<nav class="sb-nav">'+
+    navItem("dashboard","📊",l.dashboard,p)+
+    navItem("program","📋",l.program,p)+
+    navItem("feedback","💬",l.feedback,p)+
+    navItem("progress","📈",l.progress,p)+
+    '</nav>'+
+    '<div class="sb-footer"><div class="sb-user"><div class="sb-avatar">'+initial+'</div><div><div class="sb-uname">'+name+'</div><div class="sb-uemail">'+(a?a.email:"")+'</div></div></div>'+
+    '<button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="doLogout()">'+l.logout+'</button></div></aside>';
+
+  // Mobile header
+  var mob='<div class="mob-header"><button class="mob-toggle" onclick="state.sidebarOpen=!state.sidebarOpen;render()">☰</button><div class="logo" style="font-size:18px">BODY<em>FIT</em></div><div class="sb-avatar" style="width:30px;height:30px;font-size:12px">'+initial+'</div></div>';
+  var overlay='<div class="mob-overlay'+(state.sidebarOpen?" show":"")+'" onclick="state.sidebarOpen=false;render()"></div>';
+
+  // Page content
+  var content='';
+  if(p==="dashboard") content=renderDashboard(l,a);
+  else if(p==="program") content=renderProgram(l,a);
+  else if(p==="feedback") content=renderFeedback(l);
+  else if(p==="progress") content=renderProgress(l,a);
+
+  var toast=state.toast?'<div class="toast show">'+state.toast+'</div>':'';
+
+  return mob+overlay+sb+'<main class="main"><div class="fade-in">'+content+'</div></main>'+toast;
+}
+
+function navItem(key,icon,label,current){
+  return '<button class="sb-item'+(current===key?" on":"")+'" onclick="state.page=\''+key+'\';state.sidebarOpen=false;render()"><span class="icon">'+icon+'</span>'+label+'</button>';
+}
+
+// ─── DASHBOARD ───
+function renderDashboard(l,a){
+  var name=(a&&a.name)?a.name.split(" ")[0]:"";
+  var hasProg=a&&a.active_program_url;
+  var lastFb=state.feedbacks.length?state.feedbacks[state.feedbacks.length-1]:null;
+  var lastW=lastFb?lastFb.weight:(state.profile?parseFloat(state.profile.weight):null);
+  var targetW=state.profile?parseFloat(state.profile.target_weight):null;
+  var remaining=lastW&&targetW?Math.round((lastW-targetW)*10)/10:null;
+
+  var h='<div class="page-title">'+l.welcome+', '+name+' 👋</div><div class="page-desc">'+l.welcomeDesc+'</div>';
+
+  // Program card
+  if(hasProg){
+    h+='<div class="program-card"><h3>'+l.myProgram+'</h3><p>Programme actif</p>'+
+      '<div class="program-actions"><a href="'+a.active_program_url+'" target="_blank" class="btn btn-gold btn-sm">'+l.downloadPdf+' 📥</a></div></div>';
+  } else if(a&&a.onboarding_done){
+    h+='<div class="program-card"><h3>'+l.noProgram+' ⏳</h3><p>'+l.noProgramDesc+'</p></div>';
+  } else {
+    h+='<div class="program-card"><h3>'+l.startOnb+'</h3><p>'+l.completeOnb+'</p>'+
+      '<div class="program-actions"><button class="btn btn-gold btn-sm" onclick="state.account.onboarding_done=false;render()">'+l.startOnb+' →</button></div></div>';
+  }
+
+  // Stats cards
+  h+='<div class="card-grid">';
+  if(lastW){
+    h+='<div class="card"><div class="card-icon">⚖️</div><div class="card-label">'+l.currentWeight+'</div><div class="card-value">'+lastW+'<span style="font-size:14px;color:var(--text2)"> kg</span></div></div>';
+  }
+  if(targetW){
+    h+='<div class="card"><div class="card-icon">🎯</div><div class="card-label">'+l.targetWeight+'</div><div class="card-value" style="color:var(--green)">'+targetW+'<span style="font-size:14px;color:var(--text2)"> kg</span></div></div>';
+  }
+  if(remaining!==null&&remaining>0){
+    h+='<div class="card"><div class="card-icon">📉</div><div class="card-label">'+l.remaining+'</div><div class="card-value" style="color:var(--blue)">'+remaining+'<span style="font-size:14px;color:var(--text2)"> kg</span></div></div>';
+  }
+  h+='<div class="card"><div class="card-icon">📝</div><div class="card-label">Feedbacks</div><div class="card-value">'+state.feedbacks.length+'</div><div class="card-sub">'+l.weekN+'</div></div>';
+  h+='</div>';
+
+  // Last feedback summary
+  if(lastFb){
+    h+='<div class="card"><div class="card-label">Dernier feedback — '+l.weekN+' '+lastFb.week_number+'</div>';
+    h+='<div class="stat-row"><span class="stat-label">'+l.energy+'</span><span class="stat-val">'+lastFb.energy+'/5</span></div>';
+    h+='<div class="stat-row"><span class="stat-label">'+l.hunger+'</span><span class="stat-val">'+lastFb.hunger+'/5</span></div>';
+    h+='<div class="stat-row"><span class="stat-label">'+l.adherence+'</span><span class="stat-val">'+lastFb.adherence+'%</span></div>';
+    h+='<div class="stat-row"><span class="stat-label">'+l.mood+'</span><span class="stat-val">'+lastFb.mood+'/5</span></div>';
+    h+='</div>';
+  }
+
+  return h;
+}
+
+// ─── PROGRAM ───
+function renderProgram(l,a){
+  var hasProg=a&&a.active_program_url;
+  if(hasProg){
+    return '<div class="page-title">'+l.myProgram+'</div><div class="page-desc">Votre programme nutritionnel personnalise</div>'+
+      '<div class="program-card"><h3>Programme actif ✅</h3>'+
+      '<div class="program-actions"><a href="'+a.active_program_url+'" target="_blank" class="btn btn-gold btn-sm">'+l.downloadPdf+' 📥</a></div></div>';
+  }
+  return '<div class="page-title">'+l.myProgram+'</div>'+
+    '<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">'+l.noProgram+'</div><div class="empty-text">'+l.noProgramDesc+'</div></div>';
+}
+
+// ─── FEEDBACK ───
+function renderFeedback(l){
+  var wk=state.feedbacks.length+1;
+  var h='<div class="page-title">'+l.weeklyFb+'</div><div class="page-desc">'+l.fbDesc+'</div>';
+  h+='<div class="feedback-card"><div class="feedback-title">'+l.weekN+' '+wk+'</div>';
+  h+='<div class="fb-row">'+
+    fbField(l.weight,"fb-weight","number","kg")+fbField(l.waistFb,"fb-waist","number","cm")+
+    '</div><div class="fb-row">'+
+    fbField(l.energy,"fb-energy","number","1-5")+fbField(l.hunger,"fb-hunger","number","1-5")+
+    '</div><div class="fb-row">'+
+    fbField(l.adherence,"fb-adherence","number","0-100")+fbField(l.sleep,"fb-sleep","number","h")+
+    '</div><div class="fb-row">'+
+    fbField(l.water,"fb-water","number","L")+fbField(l.mood,"fb-mood","number","1-5")+
+    '</div>';
+  h+='<div class="field"><div class="label">'+l.notes+'</div><textarea class="textarea" id="fb-notes" placeholder="Comment vous sentez-vous cette semaine ?"></textarea></div>';
+  h+='<button class="btn btn-gold" onclick="submitFeedback()">'+l.sendFb+' ✓</button>';
+  h+='</div>';
+
+  // Previous feedbacks
+  if(state.feedbacks.length){
+    h+='<div class="card" style="margin-top:16px"><div class="card-label">Historique</div>';
+    state.feedbacks.slice().reverse().forEach(function(fb){
+      h+='<div class="stat-row"><span class="stat-label">'+l.weekN+' '+fb.week_number+'</span><span class="stat-val">'+(fb.weight?fb.weight+'kg':'—')+' | E:'+fb.energy+' | A:'+fb.adherence+'%</span></div>';
+    });
+    h+='</div>';
+  }
+  return h;
+}
+
+function fbField(label,id,type,ph){
+  return '<div class="field"><div class="label">'+label+'</div><input class="input" id="'+id+'" type="'+(type||"text")+'" placeholder="'+(ph||"")+'"/></div>';
+}
+
+// ─── PROGRESS ───
+function renderProgress(l,a){
+  var fbs=state.feedbacks;
+  var h='<div class="page-title">'+l.progressTitle+'</div>';
+
+  if(!fbs.length){
+    return h+'<div class="empty"><div class="empty-icon">📈</div><div class="empty-title">'+l.noData+'</div><div class="empty-text">Remplissez votre premier feedback pour voir votre progression.</div></div>';
+  }
+
+  // Weight chart
+  var weights=fbs.filter(function(f){return f.weight}).map(function(f){return f.weight});
+  if(weights.length){
+    var minW=Math.min.apply(null,weights)-2;
+    var maxW=Math.max.apply(null,weights)+2;
+    var range=maxW-minW||1;
+    h+='<div class="card card-lg"><div class="card-label">'+l.weightChart+'</div>';
+    h+='<div class="chart-area">';
+    weights.forEach(function(w,i){
+      var pct=((w-minW)/range)*100;
+      h+='<div class="chart-bar" style="height:'+Math.max(pct,8)+'%"><div class="tip">'+w+'kg</div></div>';
+    });
+    h+='</div><div class="chart-labels">';
+    fbs.forEach(function(f,i){h+='<span>'+l.weekN+(i+1)+'</span>'});
+    h+='</div></div>';
+  }
+
+  // Stats table
+  h+='<div class="card" style="margin-top:14px"><div class="card-label">Details par semaine</div>';
+  fbs.forEach(function(fb){
+    h+='<div class="stat-row"><span class="stat-label" style="min-width:50px;font-weight:600">'+l.weekN+' '+fb.week_number+'</span>'+
+      '<span class="stat-val" style="font-size:11px">'+(fb.weight?fb.weight+'kg':'—')+' | E:'+fb.energy+'/5 | F:'+(fb.hunger||"—")+'/5 | A:'+(fb.adherence||"—")+'% | 😊'+(fb.mood||"—")+'/5</span></div>';
+  });
+  h+='</div>';
+
+  return h;
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+loadUser();
+</script>
+</body>
+</html>
