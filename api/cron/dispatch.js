@@ -317,23 +317,12 @@ async function reviewRequest() {
 
   if (!completedBookings?.length) return { agent: 'reviewRequest', sent: 0 }
 
-  // Check which clients already had a review request in the last 30 days
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-  const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0]
-
-  const { data: recentReviews } = await supabase
-    .from('bookings')
-    .select('client_phone')
-    .not('review_requested_at', 'is', null)
-    .gte('review_requested_at', cutoffDate)
-
-  const recentPhones = new Set((recentReviews || []).map(r => r.client_phone))
-
+  // Dedup: only send one review request per phone per day
+  const sentPhones = new Set()
   let sent = 0
   for (const b of completedBookings) {
     if (!b.client_phone) continue
-    if (recentPhones.has(b.client_phone)) continue
+    if (sentPhones.has(b.client_phone)) continue
 
     const lang = detectLang(b.client_phone)
     const msg = getMsg('reviewRequest', lang, b.client_name || '', GOOGLE_REVIEW_URL)
@@ -341,7 +330,7 @@ async function reviewRequest() {
 
     if (result.ok) {
       sent++
-      await supabase.from('bookings').update({ review_requested_at: today }).eq('id', b.id)
+      sentPhones.add(b.client_phone)
     }
   }
 

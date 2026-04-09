@@ -106,7 +106,22 @@ CREATE POLICY "Public read clients"
 -- (no INSERT/UPDATE/DELETE policies for anon = denied by default with RLS enabled)
 
 
--- ─── 5. ADDITIONAL INDEXES ───
+-- ─── 5. CONFIG TABLE ───
+CREATE TABLE IF NOT EXISTS config (
+  id TEXT PRIMARY KEY,
+  data JSONB,
+  updated_at TEXT
+);
+
+ALTER TABLE config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin full access config"
+  ON config FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- ─── 6. ADDITIONAL INDEXES ───
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_date_slot ON bookings(date, time_slot);
 

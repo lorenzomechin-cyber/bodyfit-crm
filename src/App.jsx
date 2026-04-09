@@ -110,18 +110,23 @@ export default function App() {
     }, delay || 800)
   }
 
-  // Flush all pending syncs (called on beforeunload)
+  // Flush all pending syncs immediately (fire requests, don't await)
   function flushSyncs() {
     Object.keys(saveTimer.current).forEach(k => clearTimeout(saveTimer.current[k]))
     Object.values(pendingSyncs.current).forEach(fn => { try { fn() } catch (e) {} })
     pendingSyncs.current = {}
   }
 
-  // Flush pending syncs when tab closes
+  // Flush pending syncs on visibility change (more reliable than beforeunload)
   useEffect(() => {
+    const handleVisChange = () => { if (document.visibilityState === "hidden") flushSyncs() }
     const handleUnload = () => flushSyncs()
+    document.addEventListener("visibilitychange", handleVisChange)
     window.addEventListener("beforeunload", handleUnload)
-    return () => window.removeEventListener("beforeunload", handleUnload)
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisChange)
+      window.removeEventListener("beforeunload", handleUnload)
+    }
   }, [])
 
   useEffect(() => {
@@ -169,6 +174,7 @@ export default function App() {
   useEffect(() => {
     if (!init) return
     const iv = setInterval(async () => {
+      if (pendingSyncs.current["bookings"]) return
       try {
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         const minDate = thirtyDaysAgo.toISOString().split("T")[0]
@@ -198,6 +204,7 @@ export default function App() {
   useEffect(() => {
     if (!init) return
     const iv = setInterval(async () => {
+      if (pendingSyncs.current["clients"]) return
       try {
         const remote = await sbLoadAll("clients", dbToClient)
         sClients(prev => {
@@ -214,6 +221,7 @@ export default function App() {
   useEffect(() => {
     if (!init) return
     const iv = setInterval(async () => {
+      if (pendingSyncs.current["leads"]) return
       try {
         const remote = await sbLoadAll("leads", dbToLead)
         sLeads(prev => {
@@ -230,6 +238,7 @@ export default function App() {
   useEffect(() => {
     if (!init) return
     const iv = setInterval(async () => {
+      if (pendingSyncs.current["trials"]) return
       try {
         const remote = await sbLoadAll("trials", dbToTrial)
         sTrials(prev => {
