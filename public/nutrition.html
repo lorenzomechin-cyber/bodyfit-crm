@@ -630,7 +630,11 @@ function renderApp(){
     navItem("progress","📈",l.progress,p)+
     '</nav>'+
     '<div class="sb-footer"><div class="sb-user"><div class="sb-avatar">'+initial+'</div><div><div class="sb-uname">'+name+'</div><div class="sb-uemail">'+(a?a.email:"")+'</div></div></div>'+
-    '<button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="doLogout()">'+l.logout+'</button></div></aside>';
+    '<div class="auth-lang" style="margin-top:10px">'+
+    '<button class="lang-btn'+(state.lang==="fr"?" on":"")+'" onclick="state.lang=\'fr\';render()">FR</button>'+
+    '<button class="lang-btn'+(state.lang==="pt"?" on":"")+'" onclick="state.lang=\'pt\';render()">PT</button>'+
+    '<button class="lang-btn'+(state.lang==="en"?" on":"")+'" onclick="state.lang=\'en\';render()">EN</button></div>'+
+    '<button class="btn btn-outline btn-sm" style="margin-top:8px;width:100%" onclick="doLogout()">'+l.logout+'</button></div></aside>';
 
   // Mobile header
   var mob='<div class="mob-header"><button class="mob-toggle" onclick="state.sidebarOpen=!state.sidebarOpen;render()">☰</button><div class="logo" style="font-size:18px">BODY<em>FIT</em></div><div class="sb-avatar" style="width:30px;height:30px;font-size:12px">'+initial+'</div></div>';
