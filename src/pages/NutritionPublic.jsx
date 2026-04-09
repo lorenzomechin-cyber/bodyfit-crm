@@ -342,18 +342,20 @@ export default function NutritionPublic() {
   }
 
   const loadUser = useCallback(async () => {
-    const sess = await supabase.auth.getSession()
-    if (!sess.data.session) { setLoading(false); return }
-    const u = sess.data.session.user
-    setUser(u)
-    const acc = await supabase.from('client_accounts').select('*').eq('id', u.id).single()
-    if (acc.data) { setAccount(acc.data); setLang(acc.data.language || 'fr') }
-    if (acc.data?.nutrition_profile_id) {
-      const prof = await supabase.from('nutrition_profiles').select('*').eq('id', acc.data.nutrition_profile_id).single()
-      if (prof.data) setProfile(prof.data)
-    }
-    const fb = await supabase.from('weekly_feedbacks').select('*').eq('client_id', u.id).order('week_number', { ascending: true })
-    if (fb.data) setFeedbacks(fb.data)
+    try {
+      const sess = await supabase.auth.getSession()
+      if (!sess.data.session) { setLoading(false); return }
+      const u = sess.data.session.user
+      setUser(u)
+      const acc = await supabase.from('client_accounts').select('*').eq('id', u.id).single()
+      if (acc.data) { setAccount(acc.data); setLang(acc.data.language || 'fr') }
+      if (acc.data?.nutrition_profile_id) {
+        const prof = await supabase.from('nutrition_profiles').select('*').eq('id', acc.data.nutrition_profile_id).single()
+        if (prof.data) setProfile(prof.data)
+      }
+      const fb = await supabase.from('weekly_feedbacks').select('*').eq('client_id', u.id).order('week_number', { ascending: true })
+      if (fb.data) setFeedbacks(fb.data)
+    } catch (e) { console.error('loadUser error', e) }
     setLoading(false)
   }, [])
 
