@@ -321,6 +321,12 @@ export default function NutritionPublic() {
   const [toast, setToast] = useState('')
   const [authError, setAuthError] = useState('')
   const [authSuccess, setAuthSuccess] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPw, setAuthPw] = useState('')
+  const [authName, setAuthName] = useState('')
+  const [fbW, setFbW] = useState(''); const [fbWa, setFbWa] = useState(''); const [fbEn, setFbEn] = useState('')
+  const [fbHu, setFbHu] = useState(''); const [fbAd, setFbAd] = useState(''); const [fbSl, setFbSl] = useState('')
+  const [fbWt, setFbWt] = useState(''); const [fbMo, setFbMo] = useState(''); const [fbNo, setFbNo] = useState('')
 
   const t = L[lang] || L.fr
 
@@ -397,10 +403,7 @@ export default function NutritionPublic() {
   // ═══════════════════════════════════════════════════════
   // AUTH SCREEN
   // ═══════════════════════════════════════════════════════
-  function AuthScreen() {
-    const [email, setEmail] = useState('')
-    const [pw, setPw] = useState('')
-    const [name, setName] = useState('')
+  function renderAuth() {
     return <div className="aw"><div className="ac">
       <div className="ah"><div className="logo">BODY<em>FIT</em></div><div className="logo-s">EMS Studio</div></div>
       <div className="ab">
@@ -411,10 +414,10 @@ export default function NutritionPublic() {
         <div className="ad">{authMode === 'signup' ? t.welcomeDesc : ''}</div>
         {authError && <div className="ae">{authError}</div>}
         {authSuccess && <div className="as">{authSuccess}</div>}
-        {authMode === 'signup' && <div className="f"><label className="fl">{t.name} <span className="rq">*</span></label><input className="fi" value={name} onChange={e => setName(e.target.value)} placeholder="Sofia Almeida" /></div>}
-        <div className="f"><label className="fl">{t.email} <span className="rq">*</span></label><input className="fi" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="votre@email.com" /></div>
-        <div className="f"><label className="fl">{t.password} <span className="rq">*</span></label><input className="fi" type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Min. 6 caracteres" onKeyDown={e => { if (e.key === 'Enter') authMode === 'login' ? doLogin(email, pw) : doSignup(email, pw, name) }} /></div>
-        <button className="btn bg" onClick={() => authMode === 'login' ? doLogin(email, pw) : doSignup(email, pw, name)}>{authMode === 'login' ? t.loginBtn : t.signupBtn}</button>
+        {authMode === 'signup' && <div className="f"><label className="fl">{t.name} <span className="rq">*</span></label><input className="fi" value={authName} onChange={e => setAuthName(e.target.value)} placeholder="Sofia Almeida" /></div>}
+        <div className="f"><label className="fl">{t.email} <span className="rq">*</span></label><input className="fi" type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="votre@email.com" /></div>
+        <div className="f"><label className="fl">{t.password} <span className="rq">*</span></label><input className="fi" type="password" value={authPw} onChange={e => setAuthPw(e.target.value)} placeholder="Min. 6 caracteres" onKeyDown={e => { if (e.key === 'Enter') authMode === 'login' ? doLogin(authEmail, authPw) : doSignup(authEmail, authPw, authName) }} /></div>
+        <button className="btn bg" onClick={() => authMode === 'login' ? doLogin(authEmail, authPw) : doSignup(authEmail, authPw, authName)}>{authMode === 'login' ? t.loginBtn : t.signupBtn}</button>
         <div className="tg">{authMode === 'login' ? <>{t.noAccount} <a onClick={() => { setAuthMode('signup'); setAuthError(''); setAuthSuccess('') }}>{t.signupLink}</a></> : <>{t.hasAccount} <a onClick={() => { setAuthMode('login'); setAuthError(''); setAuthSuccess('') }}>{t.loginLink}</a></>}</div>
       </div>
     </div></div>
@@ -423,7 +426,7 @@ export default function NutritionPublic() {
   // ═══════════════════════════════════════════════════════
   // ONBOARDING (10 steps)
   // ═══════════════════════════════════════════════════════
-  function OnboardingScreen() {
+  function renderOnboarding() {
     const d = onbData; const s = onbSet; const m = onbToggle
     const steps = [
       // Step 1: Data
@@ -545,27 +548,22 @@ export default function NutritionPublic() {
   // ═══════════════════════════════════════════════════════
   // APP (dashboard + program + feedback + progress)
   // ═══════════════════════════════════════════════════════
-  function AppScreen() {
+  function renderApp() {
     const a = account; const name = a?.name?.split(' ')[0] || ''; const initial = a?.name?.[0] || '?'
     const hasProg = a?.active_program_url; const lastFb = feedbacks.length ? feedbacks[feedbacks.length - 1] : null
     const lastW = lastFb?.weight || (profile ? parseFloat(profile.weight) : null)
     const targetW = profile ? parseFloat(profile.target_weight) : null
     const remaining = lastW && targetW ? Math.round((lastW - targetW) * 10) / 10 : null
 
-    function FbForm() {
-      const [w, setW] = useState(''); const [wa, setWa] = useState(''); const [en, setEn] = useState('')
-      const [hu, setHu] = useState(''); const [ad, setAd] = useState(''); const [sl, setSl] = useState('')
-      const [wt, setWt] = useState(''); const [mo, setMo] = useState(''); const [no, setNo] = useState('')
-      return <div className="fb">
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{t.weekN} {feedbacks.length + 1}</div>
-        <div className="fr"><Fld label={t.weight}><input className="fi" type="number" step="0.1" placeholder="kg" value={w} onChange={e => setW(e.target.value)} /></Fld><Fld label={t.waistFb}><input className="fi" type="number" step="0.1" placeholder="cm" value={wa} onChange={e => setWa(e.target.value)} /></Fld></div>
-        <div className="fr"><Fld label={t.energy}><input className="fi" type="number" placeholder="1-5" value={en} onChange={e => setEn(e.target.value)} /></Fld><Fld label={t.hunger}><input className="fi" type="number" placeholder="1-5" value={hu} onChange={e => setHu(e.target.value)} /></Fld></div>
-        <div className="fr"><Fld label={t.adherence}><input className="fi" type="number" placeholder="0-100" value={ad} onChange={e => setAd(e.target.value)} /></Fld><Fld label={t.sleep}><input className="fi" type="number" step="0.5" placeholder="h" value={sl} onChange={e => setSl(e.target.value)} /></Fld></div>
-        <div className="fr"><Fld label={t.water}><input className="fi" type="number" step="0.1" placeholder="L" value={wt} onChange={e => setWt(e.target.value)} /></Fld><Fld label={t.mood}><input className="fi" type="number" placeholder="1-5" value={mo} onChange={e => setMo(e.target.value)} /></Fld></div>
-        <Fld label={t.notes}><textarea className="ta" placeholder="" value={no} onChange={e => setNo(e.target.value)} /></Fld>
-        <button className="btn bg" onClick={() => submitFeedback({ weight: parseFloat(w) || null, waist: parseFloat(wa) || null, energy: parseInt(en) || null, hunger: parseInt(hu) || null, adherence: parseInt(ad) || null, sleep_hours: parseFloat(sl) || null, water_liters: parseFloat(wt) || null, mood: parseInt(mo) || null, notes: no })}>{t.sendFb} →</button>
-      </div>
-    }
+    const fbForm = <div className="fb">
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{t.weekN} {feedbacks.length + 1}</div>
+      <div className="fr"><Fld label={t.weight}><input className="fi" type="number" step="0.1" placeholder="kg" value={fbW} onChange={e => setFbW(e.target.value)} /></Fld><Fld label={t.waistFb}><input className="fi" type="number" step="0.1" placeholder="cm" value={fbWa} onChange={e => setFbWa(e.target.value)} /></Fld></div>
+      <div className="fr"><Fld label={t.energy}><input className="fi" type="number" placeholder="1-5" value={fbEn} onChange={e => setFbEn(e.target.value)} /></Fld><Fld label={t.hunger}><input className="fi" type="number" placeholder="1-5" value={fbHu} onChange={e => setFbHu(e.target.value)} /></Fld></div>
+      <div className="fr"><Fld label={t.adherence}><input className="fi" type="number" placeholder="0-100" value={fbAd} onChange={e => setFbAd(e.target.value)} /></Fld><Fld label={t.sleep}><input className="fi" type="number" step="0.5" placeholder="h" value={fbSl} onChange={e => setFbSl(e.target.value)} /></Fld></div>
+      <div className="fr"><Fld label={t.water}><input className="fi" type="number" step="0.1" placeholder="L" value={fbWt} onChange={e => setFbWt(e.target.value)} /></Fld><Fld label={t.mood}><input className="fi" type="number" placeholder="1-5" value={fbMo} onChange={e => setFbMo(e.target.value)} /></Fld></div>
+      <Fld label={t.notes}><textarea className="ta" placeholder="" value={fbNo} onChange={e => setFbNo(e.target.value)} /></Fld>
+      <button className="btn bg" onClick={() => submitFeedback({ weight: parseFloat(fbW) || null, waist: parseFloat(fbWa) || null, energy: parseInt(fbEn) || null, hunger: parseInt(fbHu) || null, adherence: parseInt(fbAd) || null, sleep_hours: parseFloat(fbSl) || null, water_liters: parseFloat(fbWt) || null, mood: parseInt(fbMo) || null, notes: fbNo })}>{t.sendFb} →</button>
+    </div>
 
     const navItems = [['dashboard', '📊', t.dashboard], ['program', '📋', t.program], ['feedback', '💬', t.feedback], ['progress', '📈', t.progress]]
 
@@ -608,7 +606,7 @@ export default function NutritionPublic() {
         </>}
         {page === 'feedback' && <>
           <div className="pt">{t.weeklyFb}</div><div className="pd">{t.fbDesc}</div>
-          <FbForm />
+          {fbForm}
           {feedbacks.length > 0 && <div className="cd" style={{ marginTop: 16 }}><div className="cl">Historique</div>
             {[...feedbacks].reverse().map(fb => <div key={fb.id} className="sr"><span className="sl">{t.weekN} {fb.week_number}</span><span className="sv">{fb.weight ? fb.weight + 'kg' : '—'} | E:{fb.energy} | A:{fb.adherence}%</span></div>)}
           </div>}
@@ -632,9 +630,9 @@ export default function NutritionPublic() {
   if (loading) return <div className="np"><style>{CSS}</style><div className="aw"><div style={{ textAlign: 'center' }}><div className="logo">BODY<em>FIT</em></div><p style={{ marginTop: 8, color: 'var(--tx3)' }}>Chargement...</p></div></div></div>
   return <div className="np">
     <style>{CSS}</style>
-    {!user && <AuthScreen />}
-    {user && account && !account.onboarding_done && <OnboardingScreen />}
-    {user && account && account.onboarding_done && <AppScreen />}
+    {!user && renderAuth()}
+    {user && account && !account.onboarding_done && renderOnboarding()}
+    {user && account && account.onboarding_done && renderApp()}
     {toast && <div className="toast">{toast}</div>}
   </div>
 }
