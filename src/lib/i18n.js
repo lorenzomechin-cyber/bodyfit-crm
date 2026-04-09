@@ -88,9 +88,11 @@ export const T = {
     lifecycleTrial:"Essai",lifecycleRegistered:"Inscrit",lifecycleActive:"Actif",lifecycleRenewal:"Renouvellement",lifecycleLoyal:"Fidèle",lifecycle:"Parcours client",
     reschedule:"Reprogrammer",markAllCompleted:"Tout marquer effectue",filterAll:"Tous",filterNormal:"Normal",filterTrial:"Essai",
     noshowCount:"absences ce mois",quickRebook:"Meme heure semaine proch.",lastSpot:"Dernier!",spotsLeft:"places",
-    goodMorning:"Bonjour",todaySessions:"Séances aujourd'hui",urgentActions:"Actions urgentes",trialsToFollow:"Essais à relancer",expiringThisWeek:"Expire cette semaine",upcomingBookings:"Prochaines séances",bookingHistory:"Historique réservations",noShowRate:"Taux d'absence",lastVisit:"Dernière visite",daysAgo:"jours",noUpcoming:"Aucune séance prévue",totalSessions:"Total séances",
+    goodMorning:"Bonjour",todaySessions:"Séances aujourd'hui",urgentActions:"Actions urgentes",trialsToFollow:"Essais à relancer",expiringThisWeek:"Expire cette semaine",upcomingBookings:"Prochaines séances",bookingHistory:"Historique réservations",noShowRate:"Taux d'absence",lastVisit:"Dernière visite",daysAgo:"jours",noUpcoming:"Aucune séance prévue",totalSessions:"Total séances",sessionsPerWeek:"Séances par semaine",keyIndicators:"Indicateurs clés",trialConversion:"Conv. essais",totalAbsences:"Total absences",absences:"Absences",noBookingsToday:"Aucune séance prévue aujourd'hui",
     referral:"Parrainage",referralLink:"Lien de parrainage",copyLink:"Copier le lien",copied:"Copié !",referralCount:"Parrainages réussis",referralBonus:"Bonus gagnés",referredBy:"Parrainé par",shareReferral:"Partagez et gagnez 1 séance gratuite !",referralReward:"+1 séance offerte par parrainage",
     askReview:"Demander un avis",googleReview:"Avis Google",reviewSent:"Demande envoyée",reviewsRequested:"Avis demandés ce mois",
+    connecting:"Connexion...",fieldsRequired:"Veuillez remplir tous les champs",connectionError:"Erreur de connexion",invalidCredentials:"Email ou mot de passe incorrect",showPassword:"Afficher le mot de passe",hidePassword:"Masquer le mot de passe",
+    syncSaveError:"Erreur de sauvegarde — vos modifications n'ont pas ete enregistrees",syncLoadError:"Erreur de chargement des donnees",syncOk:"Donnees sauvegardees",
   },
   pt: {
     login:"Entrar",logout:"Sair",username:"Utilizador",password:"Palavra-passe",loginError:"Credenciais inválidas",
@@ -181,9 +183,11 @@ export const T = {
     lifecycleTrial:"Teste",lifecycleRegistered:"Inscrito",lifecycleActive:"Ativo",lifecycleRenewal:"Renovação",lifecycleLoyal:"Fiel",lifecycle:"Percurso cliente",
     reschedule:"Reprogramar",markAllCompleted:"Marcar tudo realizado",filterAll:"Todos",filterNormal:"Normal",filterTrial:"Teste",
     noshowCount:"ausencias este mes",quickRebook:"Mesma hora proxima sem.",lastSpot:"Ultimo!",spotsLeft:"lugares",
-    goodMorning:"Bom dia",todaySessions:"Sessões hoje",urgentActions:"Ações urgentes",trialsToFollow:"Testes a relançar",expiringThisWeek:"Expira esta semana",upcomingBookings:"Próximas sessões",bookingHistory:"Histórico reservas",noShowRate:"Taxa de ausência",lastVisit:"Última visita",daysAgo:"dias",noUpcoming:"Nenhuma sessão prevista",totalSessions:"Total sessões",
+    goodMorning:"Bom dia",todaySessions:"Sessões hoje",urgentActions:"Ações urgentes",trialsToFollow:"Testes a relançar",expiringThisWeek:"Expira esta semana",upcomingBookings:"Próximas sessões",bookingHistory:"Histórico reservas",noShowRate:"Taxa de ausência",lastVisit:"Última visita",daysAgo:"dias",noUpcoming:"Nenhuma sessão prevista",totalSessions:"Total sessões",sessionsPerWeek:"Sessões por semana",keyIndicators:"Indicadores chave",trialConversion:"Conv. testes",totalAbsences:"Total ausências",absences:"Ausências",noBookingsToday:"Nenhuma sessão prevista hoje",
     referral:"Indicação",referralLink:"Link de indicação",copyLink:"Copiar link",copied:"Copiado!",referralCount:"Indicações bem-sucedidas",referralBonus:"Bónus ganhos",referredBy:"Indicado por",shareReferral:"Partilhe e ganhe 1 sessão grátis!",referralReward:"+1 sessão oferecida por indicação",
     askReview:"Pedir avaliação",googleReview:"Avaliação Google",reviewSent:"Pedido enviado",reviewsRequested:"Avaliações pedidas este mês",
+    connecting:"A conectar...",fieldsRequired:"Preencha todos os campos",connectionError:"Erro de conexão",invalidCredentials:"Email ou palavra-passe incorretos",showPassword:"Mostrar palavra-passe",hidePassword:"Ocultar palavra-passe",
+    syncSaveError:"Erro ao guardar — as alteracoes nao foram gravadas",syncLoadError:"Erro ao carregar os dados",syncOk:"Dados guardados",
   },
   en: {
     login:"Login",logout:"Logout",username:"Username",password:"Password",loginError:"Invalid credentials",
@@ -274,8 +278,10 @@ export const T = {
     lifecycleTrial:"Trial",lifecycleRegistered:"Registered",lifecycleActive:"Active",lifecycleRenewal:"Renewal",lifecycleLoyal:"Loyal",lifecycle:"Client journey",
     reschedule:"Reschedule",markAllCompleted:"Mark all completed",filterAll:"All",filterNormal:"Normal",filterTrial:"Trial",
     noshowCount:"no-shows this month",quickRebook:"Same time next week",lastSpot:"Last spot!",spotsLeft:"spots left",
-    goodMorning:"Good morning",todaySessions:"Sessions today",urgentActions:"Urgent actions",trialsToFollow:"Trials to follow up",expiringThisWeek:"Expiring this week",upcomingBookings:"Upcoming sessions",bookingHistory:"Booking history",noShowRate:"No-show rate",lastVisit:"Last visit",daysAgo:"days",noUpcoming:"No upcoming sessions",totalSessions:"Total sessions",
+    goodMorning:"Good morning",todaySessions:"Sessions today",urgentActions:"Urgent actions",trialsToFollow:"Trials to follow up",expiringThisWeek:"Expiring this week",upcomingBookings:"Upcoming sessions",bookingHistory:"Booking history",noShowRate:"No-show rate",lastVisit:"Last visit",daysAgo:"days",noUpcoming:"No upcoming sessions",totalSessions:"Total sessions",sessionsPerWeek:"Sessions per week",keyIndicators:"Key indicators",trialConversion:"Trial conv.",totalAbsences:"Total absences",absences:"Absences",noBookingsToday:"No sessions scheduled today",
     referral:"Referral",referralLink:"Referral link",copyLink:"Copy link",copied:"Copied!",referralCount:"Successful referrals",referralBonus:"Bonuses earned",referredBy:"Referred by",shareReferral:"Share and earn 1 free session!",referralReward:"+1 free session per referral",
     askReview:"Ask for review",googleReview:"Google Review",reviewSent:"Request sent",reviewsRequested:"Reviews requested this month",
+    connecting:"Connecting...",fieldsRequired:"Please fill in all fields",connectionError:"Connection error",invalidCredentials:"Incorrect email or password",showPassword:"Show password",hidePassword:"Hide password",
+    syncSaveError:"Save error — your changes were not saved",syncLoadError:"Error loading data",syncOk:"Data saved",
   }
 }

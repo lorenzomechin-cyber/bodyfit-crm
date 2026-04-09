@@ -27,7 +27,8 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
   const srcOptions = [["recommendation", t.recommendation], ["socialMedia", t.socialMedia], ["internetSearch", t.internetSearch], ["studio", t.studio], ["advertising", t.advertising], ["oldClient", t.oldClient]]
   const totalCr = (c.credits || 0) + (c.bonus || 0)
   const usedPct = totalCr > 0 ? Math.min((c.used / totalCr) * 100, 100) : 0
-  const barColor = usedPct > 90 ? "var(--er)" : usedPct > 70 ? "var(--wr)" : "var(--ok)"
+  const remPct = totalCr > 0 ? Math.max(100 - usedPct, 0) : 0
+  const barColor = remPct < 10 ? "var(--er)" : remPct < 30 ? "var(--wr)" : "var(--ok)"
   const clientAge = calcAge(c.birthDate)
   const lastSess = getLastSession(c)
   const daysInact = getDaysInactive(c)
@@ -90,6 +91,7 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
   }
 
   function doDeleteSession(sid) {
+    if (!window.confirm(t.confirmDeleteSession || "Delete this session?")) return
     onUpdate({ ...c, sessions: (c.sessions || []).filter(s => s.id !== sid), used: Math.max((c.used || 0) - 1, 0), rem: (c.rem || 0) + 1 })
   }
 
@@ -132,7 +134,11 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
   return (
     <div className="dp">
       <div className="dph">
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 18, background: "var(--ac)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+            {c.name?.[0]?.toUpperCase() || "?"}
+          </div>
+          <div>
           <h3 style={{ fontSize: 16, fontWeight: 700 }}>{c.name || "--"}</h3>
           <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
             <span className={"bg bg-" + c.status}>{t[c.status]}</span>
@@ -142,6 +148,7 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             {freqVal > 0 ? <span className="freq-badge" style={{ background: freqVal >= 3 ? "var(--okg)" : freqVal >= 1.5 ? "var(--wrg)" : "var(--erg)", color: freqVal >= 3 ? "var(--ok)" : freqVal >= 1.5 ? "var(--wr)" : "var(--er)" }}><Icon n="activity" s={9} />{freqVal} {t.sessionsPerMonth}</span> : null}
             {lastSess ? <span className="freq-badge" style={{ background: daysInact > 14 ? "var(--erg)" : "var(--infg)", color: daysInact > 14 ? "var(--er)" : "var(--inf)" }}><Icon n="clock" s={9} />{daysInact}j</span> : null}
+          </div>
           </div>
         </div>
         <button className="bg0" onClick={onClose}><Icon n="x" s={15} /></button>
@@ -202,7 +209,7 @@ export default function CDetail({ client: c, onClose, onUpdate, lang, bookings =
           {adjustedEnd !== c.endDate ? <div className="dr"><span className="drl">{t.endDateAdjusted}</span><span className="drv" style={{ color: "var(--wr)" }}>{adjustedEnd}</span></div> : null}
           {lpInfo ? <div className="dr"><span className="drl">{t.lastPayment}</span><span className="drv" style={{ fontWeight: lpInfo.isThisMonth ? 700 : 400, color: lpInfo.isThisMonth ? "var(--er)" : lpInfo.isNextMonth ? "var(--wr)" : "var(--t0)" }}>{lpInfo.label}{lpInfo.isThisMonth ? " !" : ""}{lpInfo.monthsLeft > 0 ? " (" + lpInfo.monthsLeft + " mois)" : ""}</span></div> : null}
           <div className="fg" style={{ marginBottom: 6 }}><label className="fl">{t.nif}</label><input className="fi" value={c.nif || ""} onChange={e => up("nif", e.target.value)} /></div>
-          <div style={{ marginTop: 6 }}>{c.sub === "premium" ? <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ok)", textAlign: "center" }}>Premium</div> : <div><div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, marginBottom: 2 }}><span style={{ color: "var(--t2)" }}>{c.used} {t.creditsUsed}</span><span style={{ fontFamily: "var(--fm)", fontWeight: 700, color: barColor }}>{c.rem} {t.creditsRemaining}</span></div><div className="crb"><div className="crb-f" style={{ width: usedPct + "%", background: barColor }} /></div>{c.bonus > 0 ? <div style={{ fontSize: 9, color: "var(--ac2)", marginTop: 2 }}>+{c.bonus} {t.bonus}</div> : null}</div>}</div>
+          <div style={{ marginTop: 6 }}>{c.sub === "premium" ? <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ok)", textAlign: "center" }}>Premium</div> : <div><div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, marginBottom: 2 }}><span style={{ color: "var(--t2)" }}>{c.used} {t.creditsUsed}</span><span style={{ fontFamily: "var(--fm)", fontWeight: 700, color: barColor }}>{c.rem} {t.creditsRemaining}</span></div><div className="crb"><div className="crb-f" style={{ width: remPct + "%", background: barColor }} /></div>{c.bonus > 0 ? <div style={{ fontSize: 9, color: "var(--ac2)", marginTop: 2 }}>+{c.bonus} {t.bonus}</div> : null}</div>}</div>
         </div>
         <div className="dps"><div className="dst">{t.notes}</div><textarea className="fta" value={c.notes || ""} onChange={e => up("notes", e.target.value)} /></div>
         <div className="dps"><div className="dst"><Icon n="heart" s={10} /> {t.medicalInfo}</div>

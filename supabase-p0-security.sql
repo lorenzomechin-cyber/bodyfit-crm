@@ -183,3 +183,142 @@ CREATE POLICY "Public all on waitlist" ON waitlist FOR ALL USING (true) WITH CHE
 -- Track referrals via booking notes (Ref: CLIENT_ID)
 -- Future: dedicated referrals table for reward automation
 -- For now, referral data is stored in booking notes field
+
+
+-- ═══════════════════════════════════════════════════════════
+-- NUTRITION TABLES
+-- ═══════════════════════════════════════════════════════════
+
+-- ─── 10. NUTRITION PROFILES (questionnaire responses) ───
+CREATE TABLE IF NOT EXISTS nutrition_profiles (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  language TEXT DEFAULT 'pt',
+  -- Personal info
+  age TEXT,
+  gender TEXT,
+  height TEXT,
+  weight TEXT,
+  -- Goals & lifestyle
+  goal TEXT,
+  goal_detail TEXT,
+  activity_level TEXT,
+  ems_frequency TEXT,
+  sleep_hours TEXT,
+  stress_level TEXT,
+  water_intake TEXT,
+  -- Diet
+  diet_type TEXT,
+  allergies TEXT,
+  intolerances TEXT,
+  supplements TEXT,
+  meals_per_day TEXT,
+  cooking_time TEXT,
+  weekly_budget TEXT,
+  -- Habits
+  breakfast_habit TEXT,
+  snack_habit TEXT,
+  alcohol TEXT,
+  coffee TEXT,
+  -- Medical
+  medical_conditions TEXT,
+  medications TEXT,
+  digestive_issues TEXT,
+  -- Extra
+  motivation TEXT,
+  extra_notes TEXT,
+  -- Status
+  status TEXT DEFAULT 'new',
+  program_generated BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE nutrition_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Anon can insert (public form) and read own profile by phone
+CREATE POLICY "Public insert nutrition_profiles"
+  ON nutrition_profiles FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+CREATE POLICY "Public read own nutrition_profiles"
+  ON nutrition_profiles FOR SELECT
+  TO anon
+  USING (true);
+
+-- Authenticated (admin) full access
+CREATE POLICY "Admin full access nutrition_profiles"
+  ON nutrition_profiles FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+-- ─── 11. CLIENT ACCOUNTS (links profiles to programs) ───
+CREATE TABLE IF NOT EXISTS client_accounts (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  nutrition_profile_id TEXT REFERENCES nutrition_profiles(id),
+  phone TEXT,
+  active_program_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE client_accounts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read own client_accounts"
+  ON client_accounts FOR SELECT
+  TO anon
+  USING (true);
+
+CREATE POLICY "Admin full access client_accounts"
+  ON client_accounts FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+-- ─── 12. WEEKLY FEEDBACKS ───
+CREATE TABLE IF NOT EXISTS weekly_feedbacks (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  client_id TEXT REFERENCES nutrition_profiles(id),
+  phone TEXT,
+  week_number INT,
+  weight NUMERIC,
+  waist NUMERIC,
+  energy INT,
+  hunger INT,
+  adherence INT,
+  sleep_hours NUMERIC,
+  water_liters NUMERIC,
+  mood INT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE weekly_feedbacks ENABLE ROW LEVEL SECURITY;
+
+-- Anon can insert (public feedback form)
+CREATE POLICY "Public insert weekly_feedbacks"
+  ON weekly_feedbacks FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+CREATE POLICY "Public read own weekly_feedbacks"
+  ON weekly_feedbacks FOR SELECT
+  TO anon
+  USING (true);
+
+-- Authenticated (admin) full access
+CREATE POLICY "Admin full access weekly_feedbacks"
+  ON weekly_feedbacks FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+CREATE INDEX IF NOT EXISTS idx_nutrition_profiles_phone ON nutrition_profiles(phone);
+CREATE INDEX IF NOT EXISTS idx_nutrition_profiles_status ON nutrition_profiles(status);
+CREATE INDEX IF NOT EXISTS idx_weekly_feedbacks_client ON weekly_feedbacks(client_id);
+CREATE INDEX IF NOT EXISTS idx_weekly_feedbacks_phone ON weekly_feedbacks(phone);

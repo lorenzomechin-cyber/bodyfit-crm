@@ -9,16 +9,18 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const t = T[lang];
 
   const go = async () => {
-    if (!email || !password) return;
+    if (!email || !password) { setError(t.fieldsRequired); return; }
     setLoading(true);
     setError('');
     try {
       const res = await supabase.auth.signInWithPassword({ email, password });
       if (res.error) {
-        setError(res.error.message);
+        const msg = res.error.message;
+        setError(msg === 'Invalid login credentials' ? t.invalidCredentials : msg);
         setLoading(false);
         return;
       }
@@ -27,13 +29,14 @@ export default function Login({ onLogin }) {
         lang
       );
     } catch {
-      setError('Erreur de connexion');
+      setError(t.connectionError);
       setLoading(false);
     }
   };
 
   return (
     <div className="lgc">
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div className="lgk fin">
         <h1 style={{ fontFamily: 'var(--fm)', fontSize: 20, marginBottom: 4 }}>
           BODY<em style={{ color: 'var(--ac)', fontStyle: 'normal' }}>FIT</em>
@@ -53,20 +56,27 @@ export default function Login({ onLogin }) {
             {error}
           </div>
         )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div className="fg">
-            <label className="fl">Email</label>
-            <input className="fi" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()} placeholder="votre@email.com" />
+        <form onSubmit={e => { e.preventDefault(); go() }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="fg">
+              <label className="fl">{t.email}</label>
+              <input className="fi" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" placeholder="votre@email.com" />
+            </div>
+            <div className="fg">
+              <label className="fl">{t.password}</label>
+              <div style={{ position: 'relative' }}>
+                <input className="fi" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" style={{ paddingRight: 32 }} />
+                <button type="button" onClick={() => setShowPw(!showPw)} title={showPw ? t.hidePassword : t.showPassword} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--t2)' }}>
+                  <Icon n={showPw ? 'x' : 'eye'} s={14} />
+                </button>
+              </div>
+            </div>
+            <button type="submit" className="bt bp" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }} disabled={loading}>
+              <Icon n="zap" s={14} />
+              {loading ? t.connecting : t.login}
+            </button>
           </div>
-          <div className="fg">
-            <label className="fl">{t.password}</label>
-            <input className="fi" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()} />
-          </div>
-          <button className="bt bp" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }} disabled={loading} onClick={go}>
-            <Icon n="zap" s={14} />
-            {loading ? 'Connexion...' : t.login}
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );

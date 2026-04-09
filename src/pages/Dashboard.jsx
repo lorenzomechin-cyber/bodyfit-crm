@@ -136,7 +136,11 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
       {/* Section 1: Greeting + date + KPI cards */}
       <div className="ph">
         <h2>{t.goodMorning} {user ? user.username : ""}</h2>
-        <p style={{ fontSize: 12, color: "var(--t2)", textTransform: "capitalize" }}>{dateStr}</p>
+        <p style={{ fontSize: 12, color: "var(--t2)", textTransform: "capitalize" }}>{dateStr}
+          <span style={{ fontSize: 9, color: "var(--t2)", fontFamily: "var(--fm)", marginLeft: 8 }}>
+            {new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        </p>
       </div>
 
       <div className="cg">
@@ -149,6 +153,10 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
       <div className="cd" style={{ marginBottom: 16 }}>
         <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon n="cal" s={13} />{t.todaySessions} ({bookToday})</div>
         {todaySlots.length === 0 ? <p style={{ fontSize: 11, color: "var(--t2)", padding: "12px 0", textAlign: "center" }}>{t.closedDay}</p> :
+          bookToday === 0 ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 0", gap: 8 }}>
+            <Icon n="cal" s={28} style={{ opacity: 0.25 }} />
+            <p style={{ fontSize: 11, color: "var(--t2)", margin: 0 }}>{t.noBookingsToday}</p>
+          </div> :
           <div style={{ padding: "4px 0" }}>
             {todayTimeline.map(({ slot, bookings: slotBk }) => (
               <div key={slot} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--bd)", opacity: slotBk.length === 0 ? 0.4 : 1 }}>
@@ -176,15 +184,14 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
       <div className="cd" style={{ marginBottom: 16 }}>
         <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon n="alert" s={13} />{t.urgentActions} ({urgentTotal})</div>
 
-        {trialsToFollow.length > 0 && <>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--wr)", padding: "6px 0 2px" }}>{t.trialsToFollow} ({trialsToFollow.length})</div>
-          {trialsToFollow.map(tr => {
-            const dsc = tr.lastContactDate ? daysTo(tr.lastContactDate, td) : "?"
-            const trWa = tr.phone ? waLink(tr.phone, waMsg('trialFollowUp', tr.lang || detectLang(tr.phone), tr.name || '')) : null
-            return <div key={tr.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr.name}</div>
-                <div style={{ fontSize: 9, color: "var(--t2)" }}>{t.daysSinceContact}: {dsc}{typeof dsc === "number" ? "j" : ""} &middot; {t[tr.followUpStatus] || tr.followUpStatus}</div></div>
-              {trWa ? <a href={trWa} target="_blank" rel="noopener" style={{ color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 600 }}><Icon n="wa" s={12} /></a> : null}
+        {noShows.length > 0 && <>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--er)", padding: "6px 0 2px" }}>{t.noShowsToday} ({noShows.length})</div>
+          {noShows.map(b => {
+            const nsWa = b.clientPhone ? waLink(b.clientPhone, waMsg('noshow', detectLang(b.clientPhone), b.clientName || '')) : null
+            return <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.clientName}</div>
+                <div style={{ fontSize: 9, color: "var(--t2)" }}>{b.timeSlot} {b.type === "trial" ? `(${t.sessionTrial})` : ""}</div></div>
+              {nsWa ? <a href={nsWa} target="_blank" rel="noopener" style={{ color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 600 }}><Icon n="wa" s={12} />{t.noShowFollowUp}</a> : null}
             </div>
           })}
         </>}
@@ -202,6 +209,19 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
           })}
         </>}
 
+        {trialsToFollow.length > 0 && <>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--wr)", padding: "6px 0 2px" }}>{t.trialsToFollow} ({trialsToFollow.length})</div>
+          {trialsToFollow.map(tr => {
+            const dsc = tr.lastContactDate ? daysTo(tr.lastContactDate, td) : "?"
+            const trWa = tr.phone ? waLink(tr.phone, waMsg('trialFollowUp', tr.lang || detectLang(tr.phone), tr.name || '')) : null
+            return <div key={tr.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr.name}</div>
+                <div style={{ fontSize: 9, color: "var(--t2)" }}>{t.daysSinceContact}: {dsc}{typeof dsc === "number" ? "j" : ""} &middot; {t[tr.followUpStatus] || tr.followUpStatus}</div></div>
+              {trWa ? <a href={trWa} target="_blank" rel="noopener" style={{ color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 600 }}><Icon n="wa" s={12} /></a> : null}
+            </div>
+          })}
+        </>}
+
         {lowCredits.length > 0 && <>
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--wr)", padding: "6px 0 2px" }}>{t.lowCredits} ({lowCredits.length})</div>
           {lowCredits.map(c => {
@@ -210,18 +230,6 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
                 <div style={{ fontSize: 9, color: "var(--t2)" }}>{c.rem} {t.creditsRemaining}</div></div>
               {lcWa ? <a href={lcWa} target="_blank" rel="noopener" style={{ color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", flexShrink: 0 }}><Icon n="wa" s={12} /></a> : null}
-            </div>
-          })}
-        </>}
-
-        {noShows.length > 0 && <>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--er)", padding: "6px 0 2px" }}>{t.noShowsToday} ({noShows.length})</div>
-          {noShows.map(b => {
-            const nsWa = b.clientPhone ? waLink(b.clientPhone, waMsg('noshow', detectLang(b.clientPhone), b.clientName || '')) : null
-            return <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--bd)" }}>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.clientName}</div>
-                <div style={{ fontSize: 9, color: "var(--t2)" }}>{b.timeSlot} {b.type === "trial" ? `(${t.sessionTrial})` : ""}</div></div>
-              {nsWa ? <a href={nsWa} target="_blank" rel="noopener" style={{ color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 600 }}><Icon n="wa" s={12} />{t.noShowFollowUp}</a> : null}
             </div>
           })}
         </>}
@@ -255,7 +263,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
           {/* Weekly sessions chart */}
           <div className="cd">
             <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <Icon n="activity" s={13} />Sessoes par semaine
+              <Icon n="activity" s={13} />{t.sessionsPerWeek}
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100, marginTop: 10 }}>
               {bookingAnalytics.weeks.map((w, i) => (
@@ -268,7 +276,7 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
             </div>
             {bookingAnalytics.weeks.some(w => w.noshows > 0) && (
               <div style={{ marginTop: 8, fontSize: 10, color: "var(--t2)" }}>
-                Absences: {bookingAnalytics.weeks.map(w => w.noshows).join(" · ")}
+                {t.absences}: {bookingAnalytics.weeks.map(w => w.noshows).join(" · ")}
               </div>
             )}
           </div>
@@ -276,24 +284,24 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
           {/* KPI cards */}
           <div className="cd">
             <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <Icon n="grid" s={13} />Indicateurs cles
+              <Icon n="grid" s={13} />{t.keyIndicators}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: bookingAnalytics.noshowRate > 10 ? "var(--er)" : "var(--ok)" }}>{bookingAnalytics.noshowRate}%</div>
-                <div style={{ fontSize: 10, color: "var(--t2)" }}>Taux absence</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.noShowRate}</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: bookingAnalytics.trialConversion > 50 ? "var(--ok)" : "var(--wr)" }}>{bookingAnalytics.trialConversion}%</div>
-                <div style={{ fontSize: 10, color: "var(--t2)" }}>Conv. essais</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.trialConversion}</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--inf)" }}>{bookingAnalytics.totalSessions}</div>
-                <div style={{ fontSize: 10, color: "var(--t2)" }}>Total sessoes</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.totalSessions}</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--er)" }}>{bookingAnalytics.totalNoshows}</div>
-                <div style={{ fontSize: 10, color: "var(--t2)" }}>Total absences</div>
+                <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.totalAbsences}</div>
               </div>
             </div>
           </div>

@@ -27,10 +27,7 @@ export function clientToDb(c) {
     credits: c.credits, used: c.used, bonus: c.bonus, rem: c.rem, notes: c.notes,
     nif: c.nif, birth_date: c.birthDate, contraindications: c.contraindications,
     medical_notes: c.medicalNotes, sessions: c.sessions || [],
-    suspension_history: c.suspensionHistory || [], renewal_history: c.renewalHistory || [],
-    referral_code: c.referralCode || '', referred_by: c.referredBy || '',
-    referral_count: c.referralCount || 0, referral_bonus: c.referralBonus || 0,
-    lang: c.lang || 'pt'
+    suspension_history: c.suspensionHistory || [], renewal_history: c.renewalHistory || []
   }
 }
 
@@ -51,8 +48,7 @@ export function leadToDb(l) {
     source: l.source, date: l.date, contact_attempts: l.contactAttempts || 0,
     created_at_str: l.createdAt || "", last_action_date: l.lastActionDate || "",
     next_callback: l.nextCallback || "", address: l.address || "", birth_date: l.birthDate || "",
-    nif: l.nif || "", origin: l.origin || "", follow_up_status: l.followUpStatus || "",
-    lang: l.lang || 'pt'
+    nif: l.nif || "", origin: l.origin || "", follow_up_status: l.followUpStatus || ""
   }
 }
 
@@ -95,7 +91,6 @@ export function bookingToDb(b) {
     client_phone: b.clientPhone || "", date: b.date, time_slot: b.timeSlot,
     type: b.type || "normal", status: b.status || "confirmed",
     notes: b.notes || "", created_at: b.createdAt || new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    review_requested_at: b.reviewRequestedAt || null
+    updated_at: new Date().toISOString()
   }
 }

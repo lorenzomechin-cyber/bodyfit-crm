@@ -9,15 +9,15 @@ const fmtDateShort = (d) => { const dt = new Date(d+'T12:00:00'); return dt.toLo
 const fmtDateFull = (d) => {
   const dt = new Date(d+'T12:00:00')
   const days = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
-  const months = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+  const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
   return `${days[dt.getDay()]}, ${dt.getDate()} de ${months[dt.getMonth()]}`
 }
 const fmtDateAriaLabel = (d) => {
   const dt = new Date(d+'T12:00:00')
-  const months = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+  const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
   return `${dt.getDate()} de ${months[dt.getMonth()]} de ${dt.getFullYear()}`
 }
-const monthNames = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 const STUDIO_PHONE = '+351 964 684 718'
 const STUDIO_ADDR = 'R. Campo de Ourique 103, Lisboa'
@@ -205,7 +205,7 @@ export default function BookingPublic() {
       }
     } catch {
       // #11: specific error for network
-      setError('Erro de conexao. Verifique a sua ligacao a internet e tente novamente.')
+      setError('Erro de conexão. Verifique a sua ligação à internet e tente novamente.')
     }
     finally { setLoading(false) }
   }
@@ -223,7 +223,7 @@ export default function BookingPublic() {
       const needed = recurring ? recurringWeeks : 1
       if (rem < needed) {
         setError(rem <= 0
-          ? 'Sem sessoes disponiveis. Contacte o studio para renovar o seu pacote.'
+          ? 'Sem sessões disponíveis. Contacte o studio para renovar o seu pacote.'
           : `Apenas ${rem} sessoes disponiveis (${needed} necessarias para reserva recorrente).`)
         return
       }
@@ -235,7 +235,7 @@ export default function BookingPublic() {
       const freshCheck = await supabase.from('bookings').select('id').eq('date', selDate).eq('time_slot', selSlot).in('status', ['confirmed','completed'])
       if (freshCheck.data && freshCheck.data.length >= MAX_MACHINES) {
         // #11: slot-taken specific error
-        setError('Este horario acabou de ser preenchido. Por favor escolha outro horario.')
+        setError('Este horário acabou de ser preenchido. Por favor escolha outro horário.')
         setLoading(false)
         go('slots', 'left')
         return
@@ -252,21 +252,11 @@ export default function BookingPublic() {
         p_type: bookingType, p_notes: [!client ? 'Novo prospecto' : '', referrer ? 'Ref: ' + referrer : ''].filter(Boolean).join(' | ')
       })
       if (rpcResult.error) {
-        // RPC not available — fallback to direct insert (pre-checked above)
-        const { error: err } = await supabase.from('bookings').insert({
-          id, client_id: client?.id || '', client_name: trimName, client_phone: trimPhone,
-          date: selDate, time_slot: selSlot, type: bookingType, status: 'confirmed',
-          notes: [!client ? 'Novo prospecto' : '', referrer ? 'Ref: ' + referrer : ''].filter(Boolean).join(' | '), created_at: ts, updated_at: ts
-        })
-        if (err) {
-          // #11: differentiate insert error
-          setError('Erro ao guardar a reserva. Tente novamente.')
-          return
-        }
-        booked = true
+        setError('Erro ao guardar a reserva. Tente novamente.')
+        return
       } else {
         if (rpcResult.data === 'FULL') {
-          setError('Este horario acabou de ser preenchido. Por favor escolha outro horario.')
+          setError('Este horário acabou de ser preenchido. Por favor escolha outro horário.')
           go('slots', 'left')
           return
         }
@@ -313,7 +303,7 @@ export default function BookingPublic() {
       }
     } catch {
       // #11: network error
-      setError('Erro de conexao. Verifique a sua ligacao a internet e tente novamente.')
+      setError('Erro de conexão. Verifique a sua ligação à internet e tente novamente.')
     }
     finally { setLoading(false) }
   }
@@ -326,14 +316,15 @@ export default function BookingPublic() {
       p_client_phone: phone
     })
     if (err) {
-      // RPC not available — fallback to direct update (pre-validated client-side)
-      await supabase.from('bookings').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', bk.id).eq('client_phone', phone)
+      setError('Erro ao cancelar. Tente novamente.')
+      setLoading(false)
+      return
     } else if (result === 'TOO_LATE') {
-      setError('Cancelamento impossivel a menos de 2h da sessao.')
+      setError('Cancelamento impossível a menos de 2h da sessão.')
       setLoading(false)
       return
     } else if (result === 'UNAUTHORIZED') {
-      setError('Nao autorizado.')
+      setError('Não autorizado.')
       setLoading(false)
       return
     } else if (result !== 'OK') {
@@ -344,11 +335,25 @@ export default function BookingPublic() {
     await loadBookings(phone); setLoading(false)
   }
 
-  // #2: Quick rebook — next week same time
-  function handleQuickRebook(session) {
+  // #2: Quick rebook — next week same time (with availability check)
+  async function handleQuickRebook(session) {
     const d = new Date(session.date + 'T12:00:00')
     d.setDate(d.getDate() + 7)
     const rebookDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')
+    // Validate: not Sunday, not past 30 days
+    if (d.getDay() === 0) { setError('O próximo mesmo dia cai num domingo. Escolha outra data.'); return }
+    const maxD = new Date(); maxD.setDate(maxD.getDate() + 30)
+    if (d > maxD) { setError('Data fora do período de reserva (máx. 30 dias).'); return }
+    // Check availability
+    setLoading(true)
+    const check = await supabase.from('bookings').select('id').eq('date', rebookDate).eq('time_slot', session.timeSlot).in('status', ['confirmed','completed'])
+    setLoading(false)
+    if (check.data && check.data.length >= MAX_MACHINES) {
+      setError('Horário indisponível para a próxima semana. Escolha outro horário.')
+      setSelDate(rebookDate)
+      go('slots')
+      return
+    }
     setSelDate(rebookDate)
     setSelSlot(session.timeSlot)
     setBookingType(session.type === 'trial' ? 'trial' : 'normal')
@@ -434,7 +439,7 @@ export default function BookingPublic() {
   const slotGroups = useMemo(() => {
     const m = [], a = [], e = []
     availableSlots.forEach(s => { const h = parseInt(s); if (h < 12) m.push(s); else if (h < 17) a.push(s); else e.push(s) })
-    return [{ k: 'manha', l: 'Manha', s: m }, { k: 'tarde', l: 'Tarde', s: a }, { k: 'noite', l: 'Noite', s: e }].filter(g => g.s.length > 0)
+    return [{ k: 'manha', l: 'Manhã', s: m }, { k: 'tarde', l: 'Tarde', s: a }, { k: 'noite', l: 'Noite', s: e }].filter(g => g.s.length > 0)
   }, [availableSlots])
 
   // Client stats
@@ -459,7 +464,7 @@ export default function BookingPublic() {
     : { services: 20, calendar: 40, slots: 60, info: 80, confirm: 100 }
 
   // ─── STYLES ───
-  const C = { bg: '#F5F3EF', bg2: '#EDEAE4', white: '#FFFFFF', dark: '#1A1714', t1: '#6B6560', t2: '#736B63', bd: '#DED9D0', ok: '#2D8C5A', wr: '#C47F17', er: '#C0392B', inf: '#2E6DA4' }
+  const C = { bg: '#F5F3EF', bg2: '#EDEAE4', white: '#FFFFFF', dark: '#1A1714', t1: '#4A443E', t2: '#504A44', bd: '#DED9D0', ok: '#2D8C5A', wr: '#C47F17', er: '#C0392B', inf: '#2E6DA4' }
 
   // #1: Determine back step for nav
   function getBackStep() {
@@ -539,7 +544,7 @@ export default function BookingPublic() {
           <form onSubmit={handleIdentify} style={{ paddingTop: 32 }}>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Bem-vindo</div>
-              <div style={{ fontSize: 13, color: C.t1 }}>Introduza o seu numero para comecar</div>
+              <div style={{ fontSize: 13, color: C.t1 }}>Introduza o seu número para começar</div>
             </div>
             <div style={{ background: C.white, borderRadius: 16, padding: 20, border: '1px solid ' + C.bd }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, display: 'block' }}>Telefone</label>
@@ -575,10 +580,10 @@ export default function BookingPublic() {
             {/* #15: specific CTA text */}
             <button type="submit" disabled={loading || !phone.trim()}
               style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginTop: 16, opacity: (!phone.trim() || loading) ? 0.35 : 1, transition: 'all .2s' }}>
-              {loading ? 'A verificar...' : 'Verificar numero'}
+              {loading ? 'A verificar...' : 'Verificar número'}
             </button>
             <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: C.t2 }}>
-              Novo cliente? Insira qualquer numero para marcar uma sessao de teste.
+              Novo cliente? Insira qualquer número para marcar uma sessão de teste.
             </div>
           </form>
         )}
@@ -589,7 +594,7 @@ export default function BookingPublic() {
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <div style={{ width: 56, height: 56, borderRadius: 28, background: C.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 24 }}>👋</div>
               <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Bem-vindo!</div>
-              <div style={{ fontSize: 13, color: C.t1 }}>Parece que e novo por aqui. Marque a sua primeira sessao gratuita.</div>
+              <div style={{ fontSize: 13, color: C.t1 }}>Parece que é novo por aqui. Marque a sua primeira sessão gratuita.</div>
             </div>
             <div style={{ background: C.white, borderRadius: 16, padding: 20, border: '1px solid ' + C.bd, marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, display: 'block' }}>O seu nome</label>
@@ -606,11 +611,11 @@ export default function BookingPublic() {
             {/* #3: Guest can ONLY book trial — skip services, go straight to calendar */}
             <button disabled={!guestName.trim() || guestName.trim().length < 2} onClick={() => { setBookingType('trial'); go('calendar') }}
               style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: (!guestName.trim() || guestName.trim().length < 2) ? 0.35 : 1, transition: 'opacity .2s' }}>
-              Marcar sessao experimental gratuita
+              Marcar sessão experimental gratuita
             </button>
             <button onClick={() => { setPhone(''); go('identify', 'left') }}
               style={{ width: '100%', marginTop: 10, padding: 12, background: 'transparent', color: C.t2, border: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-              Alterar numero
+              Alterar número
             </button>
           </div>
         )}
@@ -624,7 +629,7 @@ export default function BookingPublic() {
                 {client.name?.[0]?.toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>Ola, {client.name?.split(' ')[0]}</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>Olá, {client.name?.split(' ')[0]}</div>
                 <div style={{ fontSize: 12, color: C.t2 }}>{subLabel || 'Cliente'}</div>
               </div>
               <button onClick={() => { setClient(null); setPhone(''); localStorage.removeItem('bodyfit_phone'); go('identify', 'left') }}
@@ -638,7 +643,7 @@ export default function BookingPublic() {
               <div style={{ background: C.dark, borderRadius: 16, padding: '18px 20px', marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>Proxima sessao</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>Próxima sessão</div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{fmtDateFull(nextSession.date)}</div>
                   </div>
                   <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: '#fff' }}>{nextSession.timeSlot}</div>
@@ -648,7 +653,7 @@ export default function BookingPublic() {
                   style={{ marginTop: 12, width: '100%', padding: '10px 0', background: 'rgba(255,255,255,.12)', color: '#fff', border: '1px solid rgba(255,255,255,.15)', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'background .15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}>
-                  Repetir proxima semana
+                  Repetir próxima semana
                 </button>
               </div>
             )}
@@ -671,20 +676,20 @@ export default function BookingPublic() {
                     <AnimNum value={creditsRem} color={creditsRem <= 3 ? C.er : C.ok} />
                   </div>
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase', letterSpacing: .5 }}>Sessoes restantes</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase', letterSpacing: .5 }}>Sessões restantes</div>
               </div>
               <div style={{ background: C.white, borderRadius: 16, padding: 18, border: '1px solid ' + C.bd, textAlign: 'center' }}>
                 <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 72 }}>
                   <AnimNum value={creditsUsed} color={C.inf} />
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase', letterSpacing: .5 }}>Sessoes realizadas</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase', letterSpacing: .5 }}>Sessões realizadas</div>
               </div>
             </div>
 
             {/* Subscription info */}
             {client.endDate && (
               <div style={{ background: C.white, borderRadius: 14, padding: '14px 18px', border: '1px solid ' + C.bd, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 12, color: C.t1 }}>Contrato ate</div>
+                <div style={{ fontSize: 12, color: C.t1 }}>Contrato até</div>
                 <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{fmtDateShort(client.endDate)}</div>
               </div>
             )}
@@ -694,7 +699,7 @@ export default function BookingPublic() {
               <div style={{ background: 'rgba(196,127,23,.08)', border: '1px solid rgba(196,127,23,.2)', borderRadius: 12, padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 20 }}>⚠️</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.wr }}>Poucas sessoes restantes ({creditsRem})</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.wr }}>Poucas sessões restantes ({creditsRem})</div>
                   <div style={{ fontSize: 11, color: C.t1 }}>Contacte o studio para renovar o seu pacote.</div>
                 </div>
               </div>
@@ -703,8 +708,8 @@ export default function BookingPublic() {
               <div style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.15)', borderRadius: 12, padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 20 }}>🚫</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.er }}>Sem sessoes disponiveis</div>
-                  <a href={'https://wa.me/351964684718?text=' + encodeURIComponent('Ola, gostaria de renovar o meu pacote.')} target="_blank" rel="noopener"
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.er }}>Sem sessões disponíveis</div>
+                  <a href={'https://wa.me/351964684718?text=' + encodeURIComponent('Olá, gostaria de renovar o meu pacote.')} target="_blank" rel="noopener"
                     style={{ fontSize: 11, color: C.ok, fontWeight: 600, textDecoration: 'none' }}>Renovar via WhatsApp &rarr;</a>
                 </div>
               </div>
@@ -716,7 +721,7 @@ export default function BookingPublic() {
               onMouseDown={e => e.currentTarget.style.transform = 'scale(.98)'}
               onMouseUp={e => e.currentTarget.style.transform = ''}
               onMouseLeave={e => e.currentTarget.style.transform = ''}>
-              Marcar sessao
+              Marcar sessão
             </button>
 
             {/* Tabs */}
@@ -724,7 +729,7 @@ export default function BookingPublic() {
               {['overview','history'].map(tab => (
                 <button key={tab} onClick={() => setDashTab(tab)}
                   style={{ flex: 1, padding: '10px 0', background: 'none', border: 'none', borderBottom: dashTab === tab ? '2px solid ' + C.dark : '2px solid transparent', fontSize: 12, fontWeight: 600, color: dashTab === tab ? C.dark : C.t2, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase', letterSpacing: 1, marginBottom: -2, transition: 'all .2s' }}>
-                  {tab === 'overview' ? 'Proximas' : 'Historico'}
+                  {tab === 'overview' ? 'Próximas' : 'Histórico'}
                 </button>
               ))}
             </div>
@@ -732,7 +737,7 @@ export default function BookingPublic() {
             {/* Tab: Upcoming */}
             {dashTab === 'overview' && (
               <div>
-                {upcoming.length === 0 && <div style={{ textAlign: 'center', color: C.t2, fontSize: 13, padding: '24px 0' }}>Nenhuma sessao marcada</div>}
+                {upcoming.length === 0 && <div style={{ textAlign: 'center', color: C.t2, fontSize: 13, padding: '24px 0' }}>Nenhuma sessão marcada</div>}
                 {upcoming.map(b => {
                   const canCancel = canCancelBooking(b)
                   return (
@@ -763,7 +768,7 @@ export default function BookingPublic() {
             {/* Tab: History */}
             {dashTab === 'history' && (
               <div>
-                {past.length === 0 && <div style={{ textAlign: 'center', color: C.t2, fontSize: 13, padding: '24px 0' }}>Nenhum historico</div>}
+                {past.length === 0 && <div style={{ textAlign: 'center', color: C.t2, fontSize: 13, padding: '24px 0' }}>Nenhum histórico</div>}
                 {(showAllHistory ? past : past.slice(0, 8)).map(b => {
                   const stCol = { completed: C.ok, noshow: C.er, cancelled: C.t2 }
                   const stLbl = { completed: 'Realizada', noshow: 'Faltou', cancelled: 'Cancelada' }
@@ -800,11 +805,11 @@ export default function BookingPublic() {
                 setRefCopied(true)
                 setTimeout(() => setRefCopied(false), 2000)
               }} style={{ padding: '10px 16px', background: C.dark, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                {refCopied ? 'Copie!' : 'Copiar'}
+                {refCopied ? 'Copiado!' : 'Copiar'}
               </button>
             </div>
             {/* WhatsApp share */}
-            <a href={'https://wa.me/?text=' + encodeURIComponent('Experimenta o BODYFIT EMS! Marca a tua sessao gratuita aqui: ' + window.location.origin + '/#book?ref=' + (client?.id || ''))}
+            <a href={'https://wa.me/?text=' + encodeURIComponent('Experimenta o BODYFIT EMS! Marca a tua sessão gratuita aqui: ' + window.location.origin + '/#book?ref=' + (client?.id || ''))}
               target="_blank" rel="noopener"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, padding: '10px', background: '#25D366', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
               Partilhar no WhatsApp
@@ -815,13 +820,13 @@ export default function BookingPublic() {
         {/* ══════ SERVICES (only for guests) ══════ */}
         {step === 'services' && (
           <div style={{ paddingTop: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16 }}>Escolher servico</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16 }}>Escolher serviço</div>
 
             {/* #3: Guest can only book trial — filter services based on client status */}
             {(() => {
               const allServices = [
-                { type: 'trial', title: '1a Sessao Experimental', dur: '15 min', badge: 'Gratis', badgeCol: C.ok, desc: 'Sessao de teste gratuita para experimentar o conceito EMS.' },
-                { type: 'normal', title: 'Sessao de Cliente', dur: '25 min', badge: null, desc: 'Treino personalizado adaptado aos seus objetivos.' }
+                { type: 'trial', title: '1ª Sessão Experimental', dur: '15 min', badge: 'Grátis', badgeCol: C.ok, desc: 'Sessão de teste gratuita para experimentar o conceito EMS.' },
+                { type: 'normal', title: 'Sessão de Cliente', dur: '25 min', badge: null, desc: 'Treino personalizado adaptado aos seus objetivos.' }
               ]
               // If no client (guest), only show trial
               const services = client ? allServices : allServices.filter(s => s.type === 'trial')
@@ -852,7 +857,7 @@ export default function BookingPublic() {
           <div style={{ paddingTop: 20 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.white, border: '1px solid ' + C.bd, borderRadius: 20, padding: '5px 14px 5px 10px', fontSize: 11, fontWeight: 600, color: C.t1, marginBottom: 20 }}>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: bookingType === 'trial' ? C.wr : C.inf }} />
-              {bookingType === 'trial' ? 'Experimental — 15 min' : 'Sessao cliente — 25 min'}
+              {bookingType === 'trial' ? 'Experimental — 15 min' : 'Sessão cliente — 25 min'}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -880,7 +885,7 @@ export default function BookingPublic() {
                   return (
                     // #17: ARIA on calendar day buttons with full date
                     <button key={ds} disabled={off}
-                      aria-label={fmtDateAriaLabel(ds) + (avail === 'full' ? ', sem disponibilidade' : avail === 'available' ? ', disponivel' : '')}
+                      aria-label={fmtDateAriaLabel(ds) + (avail === 'full' ? ', sem disponibilidade' : avail === 'available' ? ', disponível' : '')}
                       onClick={async () => {
                         setSelDate(ds); setSelSlot('')
                         // #6: Re-fetch bookings when entering slots step
@@ -912,7 +917,7 @@ export default function BookingPublic() {
           <div style={{ paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.t1, marginBottom: 20 }}>{fmtDateFull(selDate)}</div>
             {availableSlots.length === 0 && fullSlots.length === 0 ? (
-              <div style={{ textAlign: 'center', color: C.t2, padding: '40px 0', fontSize: 14 }}>Nenhum horario disponivel</div>
+              <div style={{ textAlign: 'center', color: C.t2, padding: '40px 0', fontSize: 14 }}>Nenhum horário disponível</div>
             ) : (
               <>
                 {slotGroups.map(g => (
@@ -923,7 +928,7 @@ export default function BookingPublic() {
                       {g.s.map(s => {
                         const booked = slotBookedCounts[s] || 0
                         // #7: Urgency indicator
-                        const urgencyLabel = booked === (MAX_MACHINES - 1) ? 'Ultimo lugar!' : booked === (MAX_MACHINES - 2) && MAX_MACHINES >= 3 ? '2 lugares' : null
+                        const urgencyLabel = booked === (MAX_MACHINES - 1) ? 'Último lugar!' : booked === (MAX_MACHINES - 2) && MAX_MACHINES >= 3 ? '2 lugares' : null
                         return (
                           <button key={s} onClick={() => { setSelSlot(s); go(client ? 'confirm' : 'info') }}
                             style={{ padding: '11px 8px', border: '1px solid ' + C.bd, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: C.white, color: C.dark, fontFamily: "'JetBrains Mono', monospace", transition: 'all .15s', position: 'relative', textAlign: 'center' }}
@@ -981,7 +986,7 @@ export default function BookingPublic() {
                     </div>
                     {waitlistJoined && (
                       <div style={{ marginTop: 10, fontSize: 12, color: C.ok, fontWeight: 600, textAlign: 'center' }}>
-                        Adicionado a lista de espera! Sera notificado se um lugar ficar disponivel.
+                        Adicionado à lista de espera! Será notificado se um lugar ficar disponível.
                       </div>
                     )}
                   </div>
@@ -996,7 +1001,7 @@ export default function BookingPublic() {
           <div style={{ paddingTop: 20 }}>
             <div style={{ background: C.white, border: '1px solid ' + C.bd, borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{bookingType === 'trial' ? 'Experimental' : 'Sessao cliente'}</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{bookingType === 'trial' ? 'Experimental' : 'Sessão cliente'}</div>
                 <div style={{ fontSize: 12, color: C.t2 }}>{fmtDateFull(selDate)}</div>
               </div>
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700 }}>{selSlot}</div>
@@ -1036,9 +1041,9 @@ export default function BookingPublic() {
           <div style={{ paddingTop: 20 }}>
             <div style={{ background: C.white, border: '1px solid ' + C.bd, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
               {[
-                { l: 'Servico', v: bookingType === 'trial' ? 'Experimental (15 min)' : 'Sessao cliente (25 min)' },
+                { l: 'Serviço', v: bookingType === 'trial' ? 'Experimental (15 min)' : 'Sessão cliente (25 min)' },
                 { l: 'Data', v: fmtDateFull(selDate) },
-                { l: 'Horario', v: selSlot },
+                { l: 'Horário', v: selSlot },
                 null,
                 { l: 'Nome', v: client ? client.name : guestName.trim() },
                 { l: 'Telefone', v: phone }
@@ -1064,21 +1069,21 @@ export default function BookingPublic() {
                         style={{ padding: '6px 10px', border: '1px solid ' + C.bd, borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: C.white, color: C.dark }}>
                         {[2,3,4,6,8].map(w => <option key={w} value={w}>{w} semanas</option>)}
                       </select>
-                      <span style={{ fontSize: 12, color: C.t1 }}>({recurringWeeks} sessoes)</span>
+                      <span style={{ fontSize: 12, color: C.t1 }}>({recurringWeeks} sessões)</span>
                     </div>
                   )}
                   {recurring && client && (
                     <div style={{ marginTop: 8, fontSize: 11, color: creditsRem < recurringWeeks ? C.er : C.t2 }}>
                       {creditsRem < recurringWeeks
-                        ? `Atencao: apenas ${creditsRem} sessoes restantes (${recurringWeeks} necessarias)`
-                        : `${creditsRem} sessoes disponiveis`}
+                        ? `Atenção: apenas ${creditsRem} sessões restantes (${recurringWeeks} necessárias)`
+                        : `${creditsRem} sessões disponíveis`}
                     </div>
                   )}
                 </div>
               )}
             </div>
             <div style={{ fontSize: 11, color: C.t2, marginBottom: 20, lineHeight: 1.6, textAlign: 'center' }}>
-              Cancelamento ate {CANCEL_CUTOFF_HOURS}h antes da sessao.
+              Cancelamento até {CANCEL_CUTOFF_HOURS}h antes da sessão.
             </div>
             {/* #15: include time in confirm button text */}
             <button disabled={loading} onClick={handleConfirm}
@@ -1086,7 +1091,7 @@ export default function BookingPublic() {
               onMouseDown={e => e.currentTarget.style.transform = 'scale(.98)'}
               onMouseUp={e => e.currentTarget.style.transform = ''}
               onMouseLeave={e => e.currentTarget.style.transform = ''}>
-              {loading ? 'A confirmar...' : `Confirmar as ${selSlot}`}
+              {loading ? 'A confirmar...' : `Confirmar às ${selSlot}`}
             </button>
           </div>
         )}
@@ -1098,9 +1103,9 @@ export default function BookingPublic() {
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2D8C5A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17L4 12" /></svg>
             </div>
             <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Confirmada!</div>
-            <div style={{ fontSize: 15, color: C.t1, marginBottom: 4 }}>{fmtDateFull(selDate)} as {selSlot}</div>
+            <div style={{ fontSize: 15, color: C.t1, marginBottom: 4 }}>{fmtDateFull(selDate)} às {selSlot}</div>
             <div style={{ fontSize: 13, color: bookingType === 'trial' ? C.wr : C.inf, fontWeight: 600, marginBottom: 32 }}>
-              {bookingType === 'trial' ? 'Sessao experimental' : 'Sessao cliente'} &middot; {bookingType === 'trial' ? '15' : '25'} min
+              {bookingType === 'trial' ? 'Sessão experimental' : 'Sessão cliente'} &middot; {bookingType === 'trial' ? '15' : '25'} min
             </div>
             {recurring && recurringResults.length > 0 && (
               <div style={{ textAlign: 'left', marginBottom: 16 }}>
@@ -1120,11 +1125,11 @@ export default function BookingPublic() {
               onMouseEnter={e => { e.currentTarget.style.borderColor = C.dark }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.bd }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19,4H5A2,2,0,0,0,3,6V20A2,2,0,0,0,5,22H19A2,2,0,0,0,21,20V6A2,2,0,0,0,19,4Z M16,2V6 M8,2V6 M3,10H21" /></svg>
-              Adicionar ao calendario
+              Adicionar ao calendário
             </a>
 
             <div style={{ background: C.bg2, borderRadius: 16, padding: 18, textAlign: 'left', marginBottom: 24 }}>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 10, marginBottom: 6, letterSpacing: 1 }}>INFORMACOES</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 10, marginBottom: 6, letterSpacing: 1 }}>INFORMAÇÕES</div>
               <div style={{ fontSize: 13, color: C.t1, lineHeight: 1.8 }}>
                 Apresente-se 5 minutos antes.<br />{STUDIO_ADDR}<br />{STUDIO_PHONE}
               </div>
@@ -1132,12 +1137,12 @@ export default function BookingPublic() {
             {client ? (
               <button onClick={() => { setDashTab('overview'); setRecurring(false); setRecurringWeeks(4); setRecurringResults([]); go('dashboard', 'left') }}
                 style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Voltar ao meu espaco
+                Voltar ao meu espaço
               </button>
             ) : (
               <button onClick={() => { setStep('identify'); setSelDate(''); setSelSlot(''); setGuestName(''); setPhone(''); setEmail(''); setBookingType(''); setRecurring(false); setRecurringWeeks(4); setRecurringResults([]) }}
                 style={{ width: '100%', padding: 16, background: C.dark, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Nova marcacao
+                Nova marcação
               </button>
             )}
           </div>

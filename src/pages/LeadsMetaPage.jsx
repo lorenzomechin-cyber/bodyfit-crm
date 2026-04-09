@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from 'react'
+import { sbDelete } from '../lib/supabase'
 import { T } from '../lib/i18n'
 import { LSTAGES, LCOL } from '../lib/constants'
 import { uid, daysTo, fmtDate } from '../lib/helpers'
@@ -39,7 +40,7 @@ export default function LeadsMetaPage({ leads, setLeads, trials, setTrials, lang
 
   const addQN = id => { const n = qn[id]; if (!n?.trim()) return; setLeads(p => p.map(l => l.id === id ? { ...l, notes: l.notes ? l.notes + "\n" + n : n, contactAttempts: (l.contactAttempts || 0) + 1, lastActionDate: new Date().toISOString().split("T")[0] } : l)); sQN(p => ({ ...p, [id]: "" })) }
 
-  const handleDelete = id => { if (window.confirm(t.deleteConfirm)) { setLeads(p => p.filter(x => x.id !== id)); if (sel && sel.id === id) setSel(null) } }
+  const handleDelete = id => { if (window.confirm(t.deleteConfirm)) { sbDelete("leads", id); setLeads(p => p.filter(x => x.id !== id)); if (sel && sel.id === id) setSel(null) } }
 
   const updateField = (id, field, value) => { setLeads(p => p.map(x => x.id === id ? { ...x, [field]: value } : x)); setSel(prev => prev && prev.id === id ? { ...prev, [field]: value } : prev) }
 

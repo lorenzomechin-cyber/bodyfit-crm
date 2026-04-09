@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from 'react'
+import { sbDelete } from '../lib/supabase'
 import { T } from '../lib/i18n'
 import { SUB, LSTAGES } from '../lib/constants'
 import { uid, daysTo, fmtDate, waLink, generateReferralCode, detectLang, waMsg } from '../lib/helpers'
@@ -36,7 +37,7 @@ export default function TrialsPage({ trials, setTrials, clients, setClients, lan
   const checkedCount = Object.keys(checked).filter(k => checked[k]).length
   function toggleCheck(id) { const next = { ...checked }; if (next[id]) { delete next[id] } else { next[id] = true } setChecked(next) }
   function toggleAll() { if (checkedCount > 0) { setChecked({}) } else { const next = {}; filtered.forEach(tr => { next[tr.id] = true }); setChecked(next) } }
-  function deleteChecked() { const ids = Object.keys(checked).filter(k => checked[k]); if (!ids.length) return; setTrials(p => p.filter(x => !checked[x.id])); if (sel && checked[sel.id]) setSel(null); setChecked({}) }
+  function deleteChecked() { const ids = Object.keys(checked).filter(k => checked[k]); if (!ids.length) return; ids.forEach(id => sbDelete("trials", id)); setTrials(p => p.filter(x => !checked[x.id])); if (sel && checked[sel.id]) setSel(null); setChecked({}) }
 
   const [showConvert, setShowConvert] = useState(false)
   const [convSub, setConvSub] = useState("12m")
@@ -61,6 +62,7 @@ export default function TrialsPage({ trials, setTrials, clients, setClients, lan
     } else {
       setClients(p => [...p, newClient])
     }
+    sbDelete("trials", sel.id)
     setTrials(p => p.filter(x => x.id !== sel.id))
     setSel(null); setShowConvert(false)
   }

@@ -1,7 +1,7 @@
 import { T } from '../lib/i18n';
 import Icon from './Icon';
 
-export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, leadCount, trialCount, isOpen, onClose }) {
+export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, leadCount, trialCount, bookingCount, isOpen, onClose }) {
   const t = T[lang];
 
   const navItems = [
@@ -9,7 +9,7 @@ export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, 
     { key: 'clients', icon: 'users', label: t.clients },
     { key: 'leads', icon: 'zap', label: t.leadsMetaTitle, badge: leadCount },
     { key: 'trials', icon: 'user', label: t.trialSessions, badge: trialCount },
-    { key: 'planning', icon: 'cal', label: t.planning },
+    { key: 'planning', icon: 'cal', label: t.planning, badge: bookingCount },
     { key: 'nutrition', icon: 'heart', label: t.nutrition },
     { key: 'settings', icon: 'gear', label: t.settings },
   ];
@@ -20,12 +20,13 @@ export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, 
         <h1>BODY<em>FIT</em></h1>
         <p>Campo de Ourique</p>
       </div>
-      <nav className="sb-nav">
+      <nav className="sb-nav" role="navigation" aria-label="Main navigation">
         {navItems.map(item => (
           <button
             key={item.key}
             className={`sb-i ${page === item.key ? 'on' : ''}`}
             onClick={() => { setPage(item.key); onClose(); }}
+            {...(page === item.key ? { 'aria-current': 'page' } : {})}
           >
             <Icon n={item.icon} />
             {item.label}
@@ -47,7 +48,7 @@ export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, 
             <p>{user.name}</p>
             <span>{t[user.role]}</span>
           </div>
-          <button className="bg0" onClick={onLogout}>
+          <button className="bg0" onClick={onLogout} title={t.logout}>
             <Icon n="out" s={14} />
           </button>
         </div>

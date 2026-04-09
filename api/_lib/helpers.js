@@ -104,6 +104,16 @@ export const WA_MESSAGES = {
     fr: (name, time) => `Bonjour ${name} ! Rappel de votre séance EMS demain à ${time} chez BodyFit. À demain ! 💪`,
     en: (name, time) => `Hi ${name}! Reminder of your EMS session tomorrow at ${time} at BodyFit. See you tomorrow! 💪`,
   },
+  nutritionProgramReady: {
+    pt: (name, url) => `Olá ${name}! 🥗\n\nO seu programa nutricional personalizado está pronto!\n\n📋 Aceda aqui: ${url}\n\nQualquer dúvida, estamos à disposição. Bom apetite! 💪`,
+    fr: (name, url) => `Bonjour ${name} ! 🥗\n\nVotre programme nutritionnel personnalisé est prêt !\n\n📋 Accédez-y ici : ${url}\n\nN'hésitez pas si vous avez des questions. Bon appétit ! 💪`,
+    en: (name, url) => `Hi ${name}! 🥗\n\nYour personalized nutrition program is ready!\n\n📋 Access it here: ${url}\n\nFeel free to reach out with questions. Bon appétit! 💪`,
+  },
+  weeklyFeedbackReminder: {
+    pt: (name, url) => `Olá ${name}! 📊\n\nÉ hora do seu check-in semanal! Leva apenas 2 minutos.\n\n👉 ${url}\n\nO seu feedback ajuda-nos a ajustar o programa. Obrigado! 💪`,
+    fr: (name, url) => `Bonjour ${name} ! 📊\n\nC'est l'heure de votre check-in hebdomadaire ! Ça prend 2 minutes.\n\n👉 ${url}\n\nVotre feedback nous aide à ajuster le programme. Merci ! 💪`,
+    en: (name, url) => `Hi ${name}! 📊\n\nTime for your weekly check-in! It only takes 2 minutes.\n\n👉 ${url}\n\nYour feedback helps us adjust the program. Thank you! 💪`,
+  },
 }
 
 export function getMsg(key, lang, ...args) {

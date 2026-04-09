@@ -212,7 +212,7 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
   const markAllPastCompleted = () => {
     if (!pastConfirmedBookings.length) return
     const ids = new Set(pastConfirmedBookings.map(b => b.id))
-    setBookings(prev => prev.map(b => ids.has(b.id) ? { ...b, status: "completed" } : b))
+    setBookings(prev => prev.map(b => ids.has(b.id) ? { ...b, status: "completed", updatedAt: new Date().toISOString() } : b))
   }
 
   // #7 — reschedule: cancel current + open add modal pre-filled

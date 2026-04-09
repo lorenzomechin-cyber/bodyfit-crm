@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import * as XLSX from 'xlsx'
+import { sbDelete } from '../lib/supabase'
 import { T } from '../lib/i18n'
 import { SUB, STATUSES } from '../lib/constants'
 import { uid, daysTo, fmtDate, calcAge, getLastSession, getDaysInactive, getFrequency, getLastPaymentMonth, getAdjustedEndDate } from '../lib/helpers'
@@ -23,7 +24,7 @@ export default function ClientsPage({ clients, setClients, trials, setTrials, bo
 
   const filt = useMemo(() => {
     let r = clients.slice()
-    if (searchC) { const q = searchC.toLowerCase(); r = r.filter(c => c.name.toLowerCase().indexOf(q) !== -1 || (c.email || "").toLowerCase().indexOf(q) !== -1 || (c.phone || "").indexOf(q) !== -1) }
+    if (searchC) { const q = searchC.toLowerCase(); r = r.filter(c => c.name.toLowerCase().indexOf(q) !== -1 || (c.email || "").toLowerCase().indexOf(q) !== -1 || (c.phone || "").indexOf(q) !== -1 || (c.nif || "").toLowerCase().indexOf(q) !== -1 || (c.notes || "").toLowerCase().indexOf(q) !== -1) }
     if (fSC !== "all") r = r.filter(c => c.status === fSC)
     if (fTC !== "all") r = r.filter(c => c.sub === fTC)
     if (fQC === "lowCredits") r = r.filter(c => c.sub !== "premium" && c.rem <= 3)
@@ -45,7 +46,7 @@ export default function ClientsPage({ clients, setClients, trials, setTrials, bo
   function sortCol(k) { if (sortKeyC === k) { setSortDirC(sortDirC === "asc" ? "desc" : "asc") } else { setSortKey(k); setSortDirC("asc") } }
   function toggleCheck(id) { const next = { ...checked }; if (next[id]) { delete next[id] } else { next[id] = true } setChecked(next) }
   function toggleAll() { if (checkedCount > 0) { setChecked({}) } else { const next = {}; paged.forEach(c => { next[c.id] = true }); setChecked(next) } }
-  function deleteChecked() { const ids = Object.keys(checked).filter(k => checked[k]); if (!ids.length) return; setClients(p => p.filter(x => !checked[x.id])); if (selC && checked[selC.id]) setSelC(null); setChecked({}) }
+  function deleteChecked() { const ids = Object.keys(checked).filter(k => checked[k]); if (!ids.length) return; if (!window.confirm(t.confirmDelete || "Are you sure you want to delete " + ids.length + " client(s)?")) return; ids.forEach(id => sbDelete("clients", id)); setClients(p => p.filter(x => !checked[x.id])); if (selC && checked[selC.id]) setSelC(null); setChecked({}) }
   function updateClient(updated) { setClients(p => p.map(x => x.id === updated.id ? updated : x)); setSelC(updated) }
   function addNew() { const n = { id: uid(), name: "", status: "active", gender: "female", phone: "", email: "", startDate: new Date().toISOString().split("T")[0], endDate: "", source: "studio", sub: "12m", credits: 48, used: 0, bonus: 0, rem: 48, notes: "", nif: "", birthDate: "", contraindications: "", medicalNotes: "", sessions: [], suspensionHistory: [], renewalHistory: [] }; setClients(p => [n, ...p]); setSelC(n) }
   function handleImport(data) { setClients(p => { let updated = p.slice(); if (data.overwrites) { data.overwrites.forEach(ow => { updated = updated.map(c => c.id === ow.id ? ow : c) }) } if (data.merges) { data.merges.forEach(mg => { updated = updated.map(c => { if (c.id !== mg.id) return c; const merged = { ...c }; Object.keys(mg).forEach(k => { if (mg[k] && !c[k]) merged[k] = mg[k] }); return merged }) }) } return updated.concat(data.newClients || []) }); setShowImportC(false) }
@@ -54,7 +55,7 @@ export default function ClientsPage({ clients, setClients, trials, setTrials, bo
   const inactiveCount = clients.filter(c => c.status === "inactive").length
   const suspendedCount = clients.filter(c => c.status === "suspended").length
 
-  function exportClientsXls() { const ws = XLSX.utils.json_to_sheet(clients.map(c => ({ Nom: c.name, Status: c.status, Tel: c.phone, Email: c.email, Debut: c.startDate, Fin: c.endDate, Abo: c.sub, Credits: c.credits, Utilises: c.used, Restants: c.rem, Notes: c.notes }))); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Clients"); XLSX.writeFile(wb, "bodyfit_clients.xlsx") }
+  function exportClientsXls() { const ws = XLSX.utils.json_to_sheet(clients.map(c => ({ [t.name]: c.name, [t.status]: c.status, [t.phone]: c.phone, [t.email]: c.email, [t.startDate]: c.startDate, [t.endDate]: c.endDate, [t.subscriptionType]: c.sub, [t.credits]: c.credits, [t.creditsUsed]: c.used, [t.creditsRemaining]: c.rem, [t.notes]: c.notes }))); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Clients"); XLSX.writeFile(wb, "bodyfit_clients.xlsx") }
 
   return (
     <div className="fin">
@@ -76,7 +77,7 @@ export default function ClientsPage({ clients, setClients, trials, setTrials, bo
       </div>
         <div style={{ overflowX: "auto" }}><table><thead><tr>
           {role === "admin" ? <th style={{ width: 32 }}><input type="checkbox" checked={checkedCount > 0 && checkedCount === paged.length} onChange={toggleAll} /></th> : null}
-          <th onClick={() => sortCol("name")} style={{ cursor: "pointer" }}>{t.name}</th><th>{t.phone}</th><th onClick={() => sortCol("status")}>{t.status}</th><th onClick={() => sortCol("startDate")} style={{ cursor: "pointer" }}>{t.startDate}</th><th onClick={() => sortCol("sub")}>{t.subscriptionType}</th><th onClick={() => sortCol("rem")}>{t.creditsRemaining}</th><th onClick={() => sortCol("lastSess")}>{t.lastSession}</th>
+          <th onClick={() => sortCol("name")} style={{ cursor: "pointer" }}>{t.name}{sortKeyC === "name" && <span style={{ marginLeft: 4, fontSize: 8 }}>{sortDirC === 'asc' ? '▲' : '▼'}</span>}</th><th>{t.phone}</th><th onClick={() => sortCol("status")} style={{ cursor: "pointer" }}>{t.status}{sortKeyC === "status" && <span style={{ marginLeft: 4, fontSize: 8 }}>{sortDirC === 'asc' ? '▲' : '▼'}</span>}</th><th onClick={() => sortCol("startDate")} style={{ cursor: "pointer" }}>{t.startDate}{sortKeyC === "startDate" && <span style={{ marginLeft: 4, fontSize: 8 }}>{sortDirC === 'asc' ? '▲' : '▼'}</span>}</th><th onClick={() => sortCol("sub")} style={{ cursor: "pointer" }}>{t.subscriptionType}{sortKeyC === "sub" && <span style={{ marginLeft: 4, fontSize: 8 }}>{sortDirC === 'asc' ? '▲' : '▼'}</span>}</th><th onClick={() => sortCol("rem")} style={{ cursor: "pointer" }}>{t.creditsRemaining}{sortKeyC === "rem" && <span style={{ marginLeft: 4, fontSize: 8 }}>{sortDirC === 'asc' ? '▲' : '▼'}</span>}</th><th onClick={() => sortCol("lastSess")} style={{ cursor: "pointer" }}>{t.lastSession}{sortKeyC === "lastSess" && <span style={{ marginLeft: 4, fontSize: 8 }}>{sortDirC === 'asc' ? '▲' : '▼'}</span>}</th>
         </tr></thead><tbody>
           {paged.length === 0 ? <tr><td colSpan={role === "admin" ? "9" : "8"} style={{ textAlign: "center", padding: 28, color: "var(--t2)" }}>{t.noResults}</td></tr> : paged.map(c => {
             const di2 = getDaysInactive(c); const ls2 = getLastSession(c); const td3 = new Date().toISOString().split("T")[0]; const adjE2 = getAdjustedEndDate(c); const dLeft = c.endDate && c.status === "active" ? daysTo(td3, adjE2) : 999

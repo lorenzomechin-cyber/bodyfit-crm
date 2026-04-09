@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { supabase, sbLoadAll, sbUpsert, sbDelete, sbDeleteAll, dbToClient, clientToDb, dbToLead, leadToDb, dbToTrial, trialToDb, dbToBooking, bookingToDb } from './lib/supabase'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { supabase, sbLoadAll, sbDeleteAll, dbToClient, clientToDb, dbToLead, leadToDb, dbToTrial, trialToDb, dbToBooking, bookingToDb } from './lib/supabase'
 import { T } from './lib/i18n'
 import { SUB, SOURCES } from './lib/constants'
 import { mkClients, mkLeads, mkTrials } from './lib/sampleData'
@@ -14,9 +14,13 @@ const NutritionPage = lazy(() => import('./pages/NutritionPage'))
 const Settings = lazy(() => import('./pages/Settings'))
 const PlanningPage = lazy(() => import('./pages/PlanningPage'))
 const BookingPublic = lazy(() => import('./pages/BookingPublic'))
+const NutritionPublic = lazy(() => import('./pages/NutritionPublic'))
+const FeedbackPublic = lazy(() => import('./pages/FeedbackPublic'))
 
 export default function App() {
   const [isPublicBooking] = useState(() => window.location.hash === "#book")
+  const [isPublicNutrition] = useState(() => window.location.hash === "#nutrition")
+  const [isPublicFeedback] = useState(() => window.location.hash === "#feedback")
   const [user, sUser] = useState(null)
   const [lang, sLang] = useState("fr")
   const [pg, sPg] = useState("dashboard")
@@ -26,6 +30,8 @@ export default function App() {
   const [bookings, sBookings] = useState([])
   const [sbO, sSbO] = useState(false)
   const [init, sInit] = useState(false)
+  const [authReady, sAuthReady] = useState(false)
+  const [toast, sToast] = useState(null)
   const defaultCfg = {
     subs: SUB,
     sources: SOURCES,
@@ -34,69 +40,129 @@ export default function App() {
   const [config, sConfig] = useState(defaultCfg)
   const t = T[lang]
 
+  // Toast notification system
+  const toastTimer = useRef(null)
+  function showToast(msg, type) {
+    sToast({ msg, type: type || "error" })
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => sToast(null), 4000)
+  }
+
+  // Load all data from Supabase (called after auth is confirmed)
+  const loadData = useCallback(async () => {
+    let hasError = false
+    try {
+      const c = await sbLoadAll("clients", dbToClient); sClients(c)
+      const l = await sbLoadAll("leads", dbToLead); sLeads(l)
+      const tr = await sbLoadAll("trials", dbToTrial); sTrials(tr)
+      const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const minDate = thirtyDaysAgo.toISOString().split("T")[0]
+      const bkRes = await supabase.from("bookings").select("*").gte("date", minDate)
+      if (bkRes.error) { hasError = true; console.error("bookings load", bkRes.error) }
+      sBookings((bkRes.data || []).map(dbToBooking))
+      const cfgRes = await supabase.from("config").select("data").eq("id", "main").single()
+      if (cfgRes.data && cfgRes.data.data) sConfig(cfgRes.data.data)
+    } catch (e) {
+      hasError = true
+      console.error("Load error", e)
+    }
+    if (hasError) showToast(t.syncLoadError || "Erreur de chargement des donnees", "error")
+    sInit(true)
+  }, [t])
+
+  // Wait for Supabase auth session to be ready before loading data
   useEffect(() => {
-    (async () => {
-      try {
-        const c = await sbLoadAll("clients", dbToClient); sClients(c.length ? c : mkClients())
-        const l = await sbLoadAll("leads", dbToLead); sLeads(l.length ? l : mkLeads())
-        const tr = await sbLoadAll("trials", dbToTrial); sTrials(tr.length ? tr : mkTrials())
-        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        const minDate = thirtyDaysAgo.toISOString().split("T")[0]
-        const bkRes = await supabase.from("bookings").select("*").gte("date", minDate)
-        sBookings((bkRes.data || []).map(dbToBooking))
-        const cfgRes = await supabase.from("config").select("data").eq("id", "main").single()
-        if (cfgRes.data && cfgRes.data.data) sConfig(cfgRes.data.data)
-      } catch (e) {
-        console.error("Load error", e)
+    // Restore lang from localStorage immediately
+    try { const lg = localStorage.getItem("bf-lang"); if (lg) sLang(lg) } catch (e) {}
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const u = { username: session.user.email, role: 'admin', name: session.user.email.split('@')[0], id: session.user.id }
+        sUser(u)
+        try { localStorage.setItem("bf-user", JSON.stringify(u)) } catch (e) {}
+      } else {
+        // No session — check localStorage for user (offline fallback)
+        try { const u = localStorage.getItem("bf-user"); if (u) sUser(JSON.parse(u)) } catch (e) {}
       }
-      try { const u = localStorage.getItem("bf-user"); if (u) sUser(JSON.parse(u)) } catch (e) {}
-      try { const lg = localStorage.getItem("bf-lang"); if (lg) sLang(lg) } catch (e) {}
-      sInit(true)
-    })()
+      sAuthReady(true)
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
+  // Load data once auth is ready
+  useEffect(() => {
+    if (!authReady) return
+    loadData()
+  }, [authReady, loadData])
+
+  // Sync helpers — upsert only, NO destructive deletes, with error feedback
   const saveTimer = useRef({})
+  const pendingSyncs = useRef({})
   function debouncedSync(key, fn, delay) {
     clearTimeout(saveTimer.current[key])
-    saveTimer.current[key] = setTimeout(fn, delay || 800)
+    pendingSyncs.current[key] = fn
+    saveTimer.current[key] = setTimeout(async () => {
+      delete pendingSyncs.current[key]
+      try {
+        await fn()
+      } catch (e) {
+        console.error("Sync error", key, e)
+        showToast(t.syncSaveError || "Erreur de sauvegarde", "error")
+      }
+    }, delay || 800)
   }
+
+  // Flush all pending syncs (called on beforeunload)
+  function flushSyncs() {
+    Object.keys(saveTimer.current).forEach(k => clearTimeout(saveTimer.current[k]))
+    Object.values(pendingSyncs.current).forEach(fn => { try { fn() } catch (e) {} })
+    pendingSyncs.current = {}
+  }
+
+  // Flush pending syncs when tab closes
+  useEffect(() => {
+    const handleUnload = () => flushSyncs()
+    window.addEventListener("beforeunload", handleUnload)
+    return () => window.removeEventListener("beforeunload", handleUnload)
+  }, [])
 
   useEffect(() => {
     if (!init) return
     debouncedSync("clients", async () => {
-      const existing = await sbLoadAll("clients", dbToClient)
-      const currentIds = new Set(clients.map(c => c.id))
-      existing.forEach(e => { if (!currentIds.has(e.id)) sbDelete("clients", e.id) })
-      if (clients.length > 0) await supabase.from("clients").upsert(clients.map(clientToDb), { onConflict: "id" })
+      if (clients.length > 0) {
+        const res = await supabase.from("clients").upsert(clients.map(clientToDb), { onConflict: "id" })
+        if (res.error) { console.error("clients sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde clients", "error") }
+      }
     })
   }, [clients, init])
 
   useEffect(() => {
     if (!init) return
     debouncedSync("leads", async () => {
-      const existing = await sbLoadAll("leads", dbToLead)
-      const currentIds = new Set(leads.map(l => l.id))
-      existing.forEach(e => { if (!currentIds.has(e.id)) sbDelete("leads", e.id) })
-      if (leads.length > 0) await supabase.from("leads").upsert(leads.map(leadToDb), { onConflict: "id" })
+      if (leads.length > 0) {
+        const res = await supabase.from("leads").upsert(leads.map(leadToDb), { onConflict: "id" })
+        if (res.error) { console.error("leads sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde leads", "error") }
+      }
     })
   }, [leads, init])
 
   useEffect(() => {
     if (!init) return
     debouncedSync("trials", async () => {
-      const existing = await sbLoadAll("trials", dbToTrial)
-      const currentIds = new Set(trials.map(t2 => t2.id))
-      existing.forEach(e => { if (!currentIds.has(e.id)) sbDelete("trials", e.id) })
-      if (trials.length > 0) await supabase.from("trials").upsert(trials.map(trialToDb), { onConflict: "id" })
+      if (trials.length > 0) {
+        const res = await supabase.from("trials").upsert(trials.map(trialToDb), { onConflict: "id" })
+        if (res.error) { console.error("trials sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde essais", "error") }
+      }
     })
   }, [trials, init])
 
-  // Bookings sync: upsert-only (no delete loop) because public booking page creates bookings independently
+  // Bookings sync: upsert-only
   useEffect(() => {
     if (!init) return
     debouncedSync("bookings", async () => {
       if (bookings.length > 0) {
-        await supabase.from("bookings").upsert(bookings.map(bookingToDb), { onConflict: "id" })
+        const res = await supabase.from("bookings").upsert(bookings.map(bookingToDb), { onConflict: "id" })
+        if (res.error) { console.error("bookings sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde reservations", "error") }
       }
     })
   }, [bookings, init])
@@ -113,7 +179,6 @@ export default function App() {
         sBookings(prev => {
           const remoteMap = new Map(remote.map(b => [b.id, b]))
           const localMap = new Map(prev.map(b => [b.id, b]))
-          // Merge: keep whichever has newer updatedAt, add new remote ones
           const merged = new Map()
           for (const [id, rb] of remoteMap) {
             const lb = localMap.get(id)
@@ -121,7 +186,6 @@ export default function App() {
             else if ((rb.updatedAt || '') >= (lb.updatedAt || '')) { merged.set(id, rb) }
             else { merged.set(id, lb) }
           }
-          // Keep local-only bookings (not yet synced)
           for (const [id, lb] of localMap) {
             if (!merged.has(id)) merged.set(id, lb)
           }
@@ -132,10 +196,59 @@ export default function App() {
     return () => clearInterval(iv)
   }, [init])
 
+  // Poll clients from DB every 30s to sync across devices
+  useEffect(() => {
+    if (!init) return
+    const iv = setInterval(async () => {
+      try {
+        const remote = await sbLoadAll("clients", dbToClient)
+        sClients(prev => {
+          const remoteMap = new Map(remote.map(c => [c.id, c]))
+          for (const c of prev) if (!remoteMap.has(c.id)) remoteMap.set(c.id, c)
+          return [...remoteMap.values()]
+        })
+      } catch (e) { console.error("Client poll error", e) }
+    }, 30000)
+    return () => clearInterval(iv)
+  }, [init])
+
+  // Poll leads from DB every 30s to sync across devices
+  useEffect(() => {
+    if (!init) return
+    const iv = setInterval(async () => {
+      try {
+        const remote = await sbLoadAll("leads", dbToLead)
+        sLeads(prev => {
+          const remoteMap = new Map(remote.map(l => [l.id, l]))
+          for (const l of prev) if (!remoteMap.has(l.id)) remoteMap.set(l.id, l)
+          return [...remoteMap.values()]
+        })
+      } catch (e) { console.error("Lead poll error", e) }
+    }, 30000)
+    return () => clearInterval(iv)
+  }, [init])
+
+  // Poll trials from DB every 30s to sync across devices
+  useEffect(() => {
+    if (!init) return
+    const iv = setInterval(async () => {
+      try {
+        const remote = await sbLoadAll("trials", dbToTrial)
+        sTrials(prev => {
+          const remoteMap = new Map(remote.map(tr => [tr.id, tr]))
+          for (const tr of prev) if (!remoteMap.has(tr.id)) remoteMap.set(tr.id, tr)
+          return [...remoteMap.values()]
+        })
+      } catch (e) { console.error("Trial poll error", e) }
+    }, 30000)
+    return () => clearInterval(iv)
+  }, [init])
+
   useEffect(() => {
     if (!init) return
     debouncedSync("config", async () => {
-      await supabase.from("config").upsert({ id: "main", data: config, updated_at: new Date().toISOString() })
+      const res = await supabase.from("config").upsert({ id: "main", data: config, updated_at: new Date().toISOString() })
+      if (res.error) console.error("config sync", res.error)
     })
   }, [config, init])
 
@@ -147,20 +260,30 @@ export default function App() {
   const login = (u, l) => {
     sUser(u); sLang(l)
     try { localStorage.setItem("bf-user", JSON.stringify(u)); localStorage.setItem("bf-lang", l) } catch (e) {}
+    // Reload data now that user is authenticated
+    loadData()
   }
   const logout = async () => {
     await supabase.auth.signOut()
     sUser(null)
+    sClients([]); sLeads([]); sTrials([]); sBookings([])
+    sInit(false)
     try { localStorage.removeItem("bf-user") } catch (e) {}
   }
   const lN = leads.filter(l => l.stage === "notContacted").length
   const trN = trials.filter(tr => tr.stage !== "converted" && (!tr.followUpStatus || tr.followUpStatus === "noAnswer" || tr.followUpStatus === "msgSent")).length
+  const bkToday = bookings.filter(b => b.date === new Date().toISOString().split("T")[0] && (b.status === "confirmed" || b.status === "completed")).length
 
   const fallback = <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--b0)", color: "var(--t2)" }}><h1 style={{ fontFamily: "var(--fm)", fontSize: 18 }}>BODY<em style={{ color: "var(--ac)", fontStyle: "normal" }}>FIT</em></h1></div>
 
-  if (isPublicBooking) return <Suspense fallback={fallback}><BookingPublic /></Suspense>
+  // Toast component
+  const toastEl = toast ? <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, background: toast.type === "error" ? "var(--er)" : "var(--ok)", color: "#fff", padding: "10px 20px", borderRadius: 8, fontSize: 12, fontWeight: 600, boxShadow: "0 4px 16px rgba(0,0,0,.15)", animation: "fIn .2s ease", display: "flex", alignItems: "center", gap: 8, maxWidth: 360 }}><Icon n={toast.type === "error" ? "x" : "check"} s={14} />{toast.msg}</div> : null
 
-  if (!init) return (
+  if (isPublicBooking) return <Suspense fallback={fallback}><BookingPublic /></Suspense>
+  if (isPublicNutrition) return <Suspense fallback={fallback}><NutritionPublic /></Suspense>
+  if (isPublicFeedback) return <Suspense fallback={fallback}><FeedbackPublic /></Suspense>
+
+  if (!authReady || (!user && !init)) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--b0)", color: "var(--t2)" }}>
       <h1 style={{ fontFamily: "var(--fm)", fontSize: 18 }}>BODY<em style={{ color: "var(--ac)", fontStyle: "normal" }}>FIT</em></h1>
     </div>
@@ -171,7 +294,7 @@ export default function App() {
     <>
       <div className="app">
         <button className="mob" onClick={() => sSbO(!sbO)}><Icon n={sbO ? "x" : "filter"} s={16} /></button>
-        <Sidebar page={pg} setPage={sPg} user={user} onLogout={logout} lang={lang} setLang={sLang} leadCount={lN} trialCount={trN} isOpen={sbO} onClose={() => sSbO(false)} />
+        <Sidebar page={pg} setPage={sPg} user={user} onLogout={logout} lang={lang} setLang={sLang} leadCount={lN} trialCount={trN} bookingCount={bkToday} isOpen={sbO} onClose={() => sSbO(false)} />
         <main className="mn"><div className="pg">
           <Suspense fallback={fallback}>
             {pg === "dashboard" && <Dashboard clients={clients} leads={leads} trials={trials} bookings={bookings} lang={lang} config={config} user={user} />}
@@ -185,6 +308,7 @@ export default function App() {
         </div></main>
       </div>
       {sbO && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.25)", zIndex: 99 }} onClick={() => sSbO(false)} />}
+      {toastEl}
     </>
   )
 }
