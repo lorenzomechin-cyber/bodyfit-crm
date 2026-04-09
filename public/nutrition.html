@@ -456,6 +456,10 @@ function renderOnboarding(){
 
   var h='<div style="max-width:640px;margin:0 auto;padding:20px 16px 60px">'+
     '<div style="text-align:center;padding:16px 0"><div class="logo">BODY<em>FIT</em></div></div>'+
+    '<div class="auth-lang" style="margin-bottom:16px">'+
+    '<button class="lang-btn'+(state.lang==="fr"?" on":"")+'" onclick="state.lang=\'fr\';render()">FR</button>'+
+    '<button class="lang-btn'+(state.lang==="pt"?" on":"")+'" onclick="state.lang=\'pt\';render()">PT</button>'+
+    '<button class="lang-btn'+(state.lang==="en"?" on":"")+'" onclick="state.lang=\'en\';render()">EN</button></div>'+
     '<div class="onb-progress"><div class="onb-fill" style="width:'+pct+'%"></div></div>'+
     '<div class="onb-step">'+(step+1)+' / '+total+'</div>'+
     '<div class="fade-in">'+steps[step]+'</div>'+
