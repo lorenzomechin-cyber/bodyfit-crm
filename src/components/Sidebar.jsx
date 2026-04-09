@@ -1,7 +1,7 @@
 import { T } from '../lib/i18n';
 import Icon from './Icon';
 
-export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, leadCount, trialCount, bookingCount, isOpen, onClose }) {
+export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, leadCount, trialCount, bookingCount, nutritionCount, isOpen, onClose }) {
   const t = T[lang];
 
   const navItems = [
@@ -10,7 +10,7 @@ export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, 
     { key: 'leads', icon: 'zap', label: t.leadsMetaTitle, badge: leadCount },
     { key: 'trials', icon: 'user', label: t.trialSessions, badge: trialCount },
     { key: 'planning', icon: 'cal', label: t.planning, badge: bookingCount },
-    { key: 'nutrition', icon: 'heart', label: t.nutrition },
+    { key: 'nutrition', icon: 'heart', label: t.nutrition, badge: nutritionCount },
     { key: 'settings', icon: 'gear', label: t.settings },
   ];
 
@@ -35,6 +35,15 @@ export default function Sidebar({ page, setPage, user, onLogout, lang, setLang, 
         ))}
       </nav>
       <div className="sb-ft">
+        <button className="sb-i" onClick={() => { if (typeof window !== 'undefined') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true })) }} style={{ fontSize: 11, color: 'var(--t2)', gap: 6, marginBottom: 4 }}>
+          <Icon n="search" s={13} />
+          {t.search || 'Rechercher'}
+          <span style={{ marginLeft: 'auto', fontSize: 9, fontFamily: 'var(--fm)', background: 'var(--b1)', border: '1px solid var(--bd)', padding: '1px 5px', borderRadius: 4 }}>⌘K</span>
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px 8px', fontSize: 9, color: 'var(--t2)' }}>
+          <div className="sync-dot" />
+          {t.synced || 'Synchronisé'}
+        </div>
         <div className="lsw">
           {['fr', 'pt', 'en'].map(x => (
             <button key={x} className={`lb ${lang === x ? 'on' : ''}`} onClick={() => setLang(x)}>

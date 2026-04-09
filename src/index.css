@@ -70,6 +70,8 @@ td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--bd)}tr:hover t
 .freq-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;font-family:var(--fm)}
 @keyframes fIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.fin{animation:fIn .25s ease forwards}
 @keyframes sIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
 .mob{display:none;position:fixed;top:10px;left:10px;z-index:101;padding:7px;background:var(--b2);border:1px solid var(--bd);border-radius:var(--rs);cursor:pointer;color:var(--t0)}
 @media(max-width:1024px){.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mn{margin-left:0}.mob{display:flex!important}.dp{width:100%}}
 @media(max-width:640px){.pg{padding:12px}.cg{grid-template-columns:1fr 1fr}.fg2{grid-template-columns:1fr}.pipe{flex-direction:column}.pcol{flex:none;width:100%}}

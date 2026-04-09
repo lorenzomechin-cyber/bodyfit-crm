@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, Fragment } from 'react'
 import { T } from '../lib/i18n'
 import { LCOL } from '../lib/constants'
 import { daysTo, getDaysInactive, getActiveSuspension, getAdjustedEndDate, waLink, generateSlots, detectLang, waMsg } from '../lib/helpers'
@@ -6,6 +6,10 @@ import Icon from '../components/Icon'
 
 const DAY_NAMES = { fr: ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"], pt: ["Domingo","Segunda","Terca","Quarta","Quinta","Sexta","Sabado"], en: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"] }
 const MONTH_NAMES = { fr: ["janvier","fevrier","mars","avril","mai","juin","juillet","aout","septembre","octobre","novembre","decembre"], pt: ["janeiro","fevereiro","marco","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"], en: ["January","February","March","April","May","June","July","August","September","October","November","December"] }
+const MONTH_SHORT = { fr: ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"], pt: ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"], en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] }
+
+const SUB_PRICES = { "12m": 89, "6m": 99, "3m": 109, p10: 290, p15: 399, p20: 490, premium: 149 }
+const SUB_RECURRING = { "12m": true, "6m": true, "3m": true, premium: true }
 
 export default function Dashboard({ clients, leads, trials, bookings = [], lang, config, user }) {
   const t = T[lang]
@@ -45,6 +49,103 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
     const monthStart = td.substring(0, 7) + '-01'
     return bookings.filter(b => b.reviewRequestedAt && b.reviewRequestedAt >= monthStart).length
   }, [bookings, td])
+
+  // --- NEW: Client growth per month (last 6 months) ---
+  const clientGrowth = useMemo(() => {
+    const months = []
+    const mShort = MONTH_SHORT[lang] || MONTH_SHORT.fr
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = d.toISOString().substring(0, 7)
+      const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+      const count = clients.filter(c => {
+        if (!c.startDate) return false
+        if (c.startDate > endOfMonth) return false
+        if (c.status === 'inactive' && c.endDate && c.endDate < key + '-01') return false
+        return true
+      }).length
+      months.push({ label: mShort[d.getMonth()], count, key })
+    }
+    return months
+  }, [clients, lang])
+
+  // --- NEW: Monthly revenue estimation ---
+  const revenueData = useMemo(() => {
+    const currentMonth = td.substring(0, 7)
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const prevMonth = prevDate.toISOString().substring(0, 7)
+
+    const calcRevenue = (monthKey) => {
+      const monthEnd = new Date(monthKey + '-01')
+      monthEnd.setMonth(monthEnd.getMonth() + 1)
+      monthEnd.setDate(0)
+      const endStr = monthEnd.toISOString().split('T')[0]
+      const startStr = monthKey + '-01'
+      let total = 0
+      clients.forEach(c => {
+        if (!c.sub || !c.startDate) return
+        if (c.startDate > endStr) return
+        if (c.endDate && c.endDate < startStr) return
+        const price = SUB_PRICES[c.sub]
+        if (!price) return
+        if (SUB_RECURRING[c.sub]) {
+          total += price
+        } else {
+          // One-time packs: count if startDate is in this month
+          if (c.startDate >= startStr && c.startDate <= endStr) {
+            total += price
+          }
+        }
+      })
+      return total
+    }
+
+    const current = calcRevenue(currentMonth)
+    const previous = calcRevenue(prevMonth)
+    const diff = previous > 0 ? Math.round((current - previous) / previous * 100) : (current > 0 ? 100 : 0)
+    return { current, previous, diff }
+  }, [clients, td])
+
+  // --- NEW: Retention rate (clients with renewalHistory) ---
+  const retentionData = useMemo(() => {
+    const eligible = clients.filter(c => c.status === 'active' || c.status === 'inactive')
+    const retained = eligible.filter(c => c.renewalHistory && c.renewalHistory.length > 0)
+    const rate = eligible.length > 0 ? Math.round(retained.length / eligible.length * 100) : 0
+    return { rate, retained: retained.length, total: eligible.length }
+  }, [clients])
+
+  // --- NEW: Previous month KPI comparisons ---
+  const prevMonthStats = useMemo(() => {
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+    const prevEndStr = prevEnd.toISOString().split('T')[0]
+    const prevStartStr = prevDate.toISOString().split('T')[0]
+
+    const prevActive = clients.filter(c => {
+      if (!c.startDate) return false
+      if (c.startDate > prevEndStr) return false
+      if (c.status === 'inactive' && c.endDate && c.endDate < prevStartStr) return false
+      return true
+    }).length
+
+    const prevBookings = bookings.filter(b => {
+      return b.date >= prevStartStr && b.date <= prevEndStr && (b.status === 'confirmed' || b.status === 'completed')
+    }).length
+
+    // Average daily sessions previous month
+    const daysInPrevMonth = prevEnd.getDate()
+    const prevAvgDaily = daysInPrevMonth > 0 ? Math.round(prevBookings / daysInPrevMonth * 10) / 10 : 0
+
+    // This month so far
+    const thisMonthStart = td.substring(0, 7) + '-01'
+    const thisMonthBookings = bookings.filter(b => {
+      return b.date >= thisMonthStart && b.date <= td && (b.status === 'confirmed' || b.status === 'completed')
+    }).length
+    const daysSoFar = Math.max(1, now.getDate())
+    const thisAvgDaily = Math.round(thisMonthBookings / daysSoFar * 10) / 10
+
+    return { prevActive, prevBookings, prevAvgDaily, thisAvgDaily, thisMonthBookings }
+  }, [clients, bookings, td])
 
   // Section 2: Today's timeline
   const todaySlots = useMemo(() => generateSlots(td), [td])
@@ -131,6 +232,177 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
 
   const urgentTotal = trialsToFollow.length + expiringWeek.length + lowCredits.length + noShows.length
 
+  // --- SVG mini line chart helper ---
+  const renderLineChart = (data, width, height) => {
+    if (!data.length) return null
+    const max = Math.max(...data.map(d => d.count), 1)
+    const min = Math.min(...data.map(d => d.count), 0)
+    const range = max - min || 1
+    const padY = 20
+    const padX = 10
+    const chartW = width - padX * 2
+    const chartH = height - padY * 2
+    const points = data.map((d, i) => ({
+      x: padX + (i / Math.max(data.length - 1, 1)) * chartW,
+      y: padY + chartH - ((d.count - min) / range) * chartH
+    }))
+    const pathD = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ')
+    const areaD = pathD + ' L' + points[points.length - 1].x.toFixed(1) + ',' + (height - padY) + ' L' + points[0].x.toFixed(1) + ',' + (height - padY) + ' Z'
+
+    return (
+      <svg width={width} height={height} style={{ display: 'block' }}>
+        <defs>
+          <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--ok)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--ok)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => (
+          <line key={i} x1={padX} x2={width - padX} y1={padY + chartH * (1 - frac)} y2={padY + chartH * (1 - frac)} stroke="var(--bd)" strokeWidth="0.5" strokeDasharray="3,3" />
+        ))}
+        {/* Area fill */}
+        <path d={areaD} fill="url(#lineGrad)" />
+        {/* Line */}
+        <path d={pathD} fill="none" stroke="var(--ok)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Data points and labels */}
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="3.5" fill="var(--b2)" stroke="var(--ok)" strokeWidth="2" />
+            <text x={p.x} y={p.y - 10} textAnchor="middle" fontSize="9" fontWeight="700" fontFamily="var(--fm)" fill="var(--t0)">{data[i].count}</text>
+            <text x={p.x} y={height - 4} textAnchor="middle" fontSize="8" fontFamily="var(--f)" fill="var(--t2)">{data[i].label}</text>
+          </g>
+        ))}
+      </svg>
+    )
+  }
+
+  // --- SVG donut/ring chart helper ---
+  const renderDonut = (percentage, size, strokeWidth, color) => {
+    const radius = (size - strokeWidth) / 2
+    const circumference = 2 * Math.PI * radius
+    const offset = circumference - (percentage / 100) * circumference
+    const center = size / 2
+    return (
+      <svg width={size} height={size} style={{ display: 'block' }}>
+        <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--bd)" strokeWidth={strokeWidth} opacity="0.4" />
+        <circle cx={center} cy={center} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" transform={`rotate(-90 ${center} ${center})`} style={{ transition: 'stroke-dashoffset 1s ease' }} />
+        <text x={center} y={center - 4} textAnchor="middle" fontSize="18" fontWeight="700" fontFamily="var(--fm)" fill="var(--t0)">{percentage}%</text>
+        <text x={center} y={center + 12} textAnchor="middle" fontSize="8" fontFamily="var(--f)" fill="var(--t2)" textTransform="uppercase">{lang === 'fr' ? 'retention' : lang === 'pt' ? 'retencao' : 'retention'}</text>
+      </svg>
+    )
+  }
+
+  // --- Trend arrow component ---
+  const TrendArrow = ({ current, previous, suffix = '', invert = false }) => {
+    if (previous === 0 && current === 0) return null
+    const diff = previous > 0 ? Math.round((current - previous) / previous * 100) : (current > 0 ? 100 : 0)
+    const isUp = diff > 0
+    const isNeutral = diff === 0
+    const isPositive = invert ? !isUp : isUp
+    if (isNeutral) return <span style={{ fontSize: 9, color: 'var(--t2)', marginLeft: 4 }}>--</span>
+    return (
+      <span style={{ fontSize: 9, fontWeight: 700, color: isPositive ? 'var(--ok)' : 'var(--er)', marginLeft: 4, fontFamily: 'var(--fm)' }}>
+        {isUp ? '\u2191' : '\u2193'}{Math.abs(diff)}{suffix}
+      </span>
+    )
+  }
+
+  // --- Booking heatmap ---
+  const renderHeatmap = (hourCounts, dayNames) => {
+    if (!hourCounts) return null
+    // Collect all hours that appear
+    const allHours = new Set()
+    Object.values(hourCounts).forEach(dayData => {
+      Object.keys(dayData).forEach(h => allHours.add(h))
+    })
+    const hours = [...allHours].sort()
+    if (hours.length === 0) return <p style={{ fontSize: 11, color: 'var(--t2)', textAlign: 'center', padding: '12px 0' }}>--</p>
+
+    // Find max for color scaling
+    let maxVal = 0
+    Object.values(hourCounts).forEach(dayData => {
+      Object.values(dayData).forEach(v => { if (v > maxVal) maxVal = v })
+    })
+
+    const days = [1, 2, 3, 4, 5, 6]
+    const shortDays = lang === 'fr' ? ['L','M','Me','J','V','S'] : lang === 'pt' ? ['S','T','Q','Q','S','S'] : ['M','T','W','T','F','S']
+
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `36px repeat(${days.length}, 1fr)`, gap: 2, minWidth: 240 }}>
+          {/* Header row */}
+          <div />
+          {days.map((d, i) => (
+            <div key={d} style={{ fontSize: 8, fontWeight: 700, color: 'var(--t2)', textAlign: 'center', padding: '2px 0', textTransform: 'uppercase' }}>{shortDays[i]}</div>
+          ))}
+          {/* Data rows */}
+          {hours.map(h => (
+            <Fragment key={h}>
+              <div style={{ fontSize: 9, fontFamily: 'var(--fm)', color: 'var(--t2)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>{h}h</div>
+              {days.map(d => {
+                const val = (hourCounts[d] && hourCounts[d][h]) || 0
+                const intensity = maxVal > 0 ? val / maxVal : 0
+                const bg = intensity === 0
+                  ? 'var(--b1)'
+                  : `rgba(45, 140, 90, ${Math.max(0.08, intensity * 0.65)})`
+                return (
+                  <div key={d} style={{
+                    background: bg,
+                    borderRadius: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 8,
+                    fontFamily: 'var(--fm)',
+                    fontWeight: 600,
+                    color: intensity > 0.5 ? '#fff' : intensity > 0 ? 'var(--ok)' : 'var(--t2)',
+                    padding: '5px 2px',
+                    minHeight: 22,
+                    transition: 'background .3s'
+                  }}>
+                    {val > 0 ? val : ''}
+                  </div>
+                )
+              })}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // --- KPI card style with gradient ---
+  const kpiCardStyle = (gradFrom, gradTo) => ({
+    background: `linear-gradient(135deg, ${gradFrom} 0%, var(--b2) 100%)`,
+    border: '1px solid var(--bd)',
+    borderRadius: 'var(--r)',
+    padding: 16,
+    transition: 'all .15s',
+    position: 'relative',
+    overflow: 'hidden'
+  })
+
+  const kpiGradients = [
+    { from: 'rgba(44,44,44,.04)', to: 'var(--b2)' },       // sessions today
+    { from: 'rgba(46,109,164,.04)', to: 'var(--b2)' },      // bookings
+    { from: 'rgba(45,140,90,.04)', to: 'var(--b2)' },       // active
+    { from: 'rgba(192,57,43,.04)', to: 'var(--b2)' },       // renewals
+    { from: 'rgba(46,109,164,.04)', to: 'var(--b2)' },      // low credits
+    { from: 'rgba(196,127,23,.04)', to: 'var(--b2)' },      // suspended
+    { from: 'rgba(45,140,90,.04)', to: 'var(--b2)' },       // reviews
+  ]
+
+  const kpiCards = [
+    { l: t.sessionsToday, v: sessToday, c: "sv-ac", prev: prevMonthStats.prevAvgDaily, curr: prevMonthStats.thisAvgDaily },
+    { l: t.todayBookings || "Reservations", v: bookToday, c: "sv-inf" },
+    { l: t.activeClients, v: st.ac, c: "sv-ok", s: st.tot + " " + t.totalClients, prev: prevMonthStats.prevActive, curr: st.ac },
+    { l: t.upcomingRenewals, v: st.rn, c: "sv-er" },
+    { l: t.lowCredits, v: st.lc, c: "sv-inf", invert: true },
+    { l: t.suspendedClients, v: st.sc, c: "sv-wr", invert: true },
+    { l: t.reviewsRequested, v: reviewsThisMonth, c: "sv-ok" }
+  ]
+
   return (
     <div className="fin">
       {/* Section 1: Greeting + date + KPI cards */}
@@ -143,10 +415,92 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
         </p>
       </div>
 
+      {/* KPI cards with gradients and trend arrows */}
       <div className="cg">
-        {[{ l: t.sessionsToday, v: sessToday, c: "sv-ac" }, { l: t.todayBookings || "Reservations", v: bookToday, c: "sv-inf" }, { l: t.activeClients, v: st.ac, c: "sv-ok", s: st.tot + " " + t.totalClients }, { l: t.upcomingRenewals, v: st.rn, c: "sv-er" }, { l: t.lowCredits, v: st.lc, c: "sv-inf" }, { l: t.suspendedClients, v: st.sc, c: "sv-wr" }, { l: t.reviewsRequested, v: reviewsThisMonth, c: "sv-ok" }].map((x, i) =>
-          <div key={i} className="cd"><div className="sl">{x.l}</div><div className={"sv " + (x.c || "")}>{x.v}</div>{x.s ? <div className="ss">{x.s}</div> : null}</div>
+        {kpiCards.map((x, i) =>
+          <div key={i} style={kpiCardStyle(kpiGradients[i % kpiGradients.length].from, kpiGradients[i % kpiGradients.length].to)}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, background: kpiGradients[i % kpiGradients.length].from.replace('.04', '.06'), borderRadius: '0 0 0 60px', opacity: 0.5 }} />
+            <div className="sl">{x.l}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+              <div className={"sv " + (x.c || "")}>{x.v}</div>
+              {x.prev !== undefined && x.curr !== undefined && <TrendArrow current={x.curr} previous={x.prev} suffix="%" invert={x.invert} />}
+            </div>
+            {x.s ? <div className="ss">{x.s}</div> : null}
+          </div>
         )}
+      </div>
+
+      {/* NEW: Charts section - 2 column grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, marginBottom: 20 }}>
+
+        {/* Client growth line chart */}
+        <div className="cd">
+          <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon n="activity" s={13} />
+            {lang === 'fr' ? 'Croissance clients' : lang === 'pt' ? 'Crescimento clientes' : 'Client Growth'}
+            <span style={{ fontSize: 9, color: 'var(--t2)', fontWeight: 400, marginLeft: 'auto' }}>
+              {lang === 'fr' ? '6 derniers mois' : lang === 'pt' ? 'ultimos 6 meses' : 'last 6 months'}
+            </span>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {renderLineChart(clientGrowth, 320, 140)}
+          </div>
+        </div>
+
+        {/* Revenue estimation + Retention donut */}
+        <div className="cd">
+          <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon n="zap" s={13} />
+            {lang === 'fr' ? 'Revenu & Retention' : lang === 'pt' ? 'Receita & Retencao' : 'Revenue & Retention'}
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8, alignItems: 'center' }}>
+            {/* Revenue block */}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--t2)', fontWeight: 600, marginBottom: 6 }}>
+                {lang === 'fr' ? 'Revenu estimé' : lang === 'pt' ? 'Receita estimada' : 'Est. Revenue'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ fontFamily: 'var(--fm)', fontSize: 28, fontWeight: 700, color: 'var(--ok)' }}>
+                  {revenueData.current.toLocaleString('fr-FR')}&euro;
+                </span>
+                <span style={{ fontSize: 9, color: 'var(--t2)' }}>/mo</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                <span style={{ fontSize: 10, color: 'var(--t2)' }}>
+                  {lang === 'fr' ? 'Mois préc.' : lang === 'pt' ? 'Mes anterior' : 'Prev. month'}: {revenueData.previous.toLocaleString('fr-FR')}&euro;
+                </span>
+                <TrendArrow current={revenueData.current} previous={revenueData.previous} suffix="%" />
+              </div>
+              {/* Revenue breakdown hint */}
+              <div style={{ marginTop: 10, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {Object.entries(SUB_PRICES).map(([k, v]) => {
+                  const count = clients.filter(c => c.sub === k && c.status === 'active').length
+                  if (count === 0) return null
+                  return (
+                    <span key={k} style={{
+                      fontSize: 8,
+                      padding: '2px 6px',
+                      borderRadius: 8,
+                      background: 'var(--b1)',
+                      color: 'var(--t1)',
+                      fontFamily: 'var(--fm)',
+                      fontWeight: 600
+                    }}>
+                      {k}: {count}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+            {/* Retention donut */}
+            <div style={{ flexShrink: 0 }}>
+              {renderDonut(retentionData.rate, 100, 8, 'var(--ok)')}
+              <div style={{ textAlign: 'center', marginTop: 4, fontSize: 8, color: 'var(--t2)' }}>
+                {retentionData.retained}/{retentionData.total}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Section 2: Today's sessions timeline */}
@@ -182,7 +536,10 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
 
       {/* Section 3: Urgent actions */}
       <div className="cd" style={{ marginBottom: 16 }}>
-        <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon n="alert" s={13} />{t.urgentActions} ({urgentTotal})</div>
+        <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Icon n="alert" s={13} />{t.urgentActions}
+          {urgentTotal > 0 && <span style={{ fontFamily: 'var(--fm)', fontSize: 9, fontWeight: 700, background: 'var(--er)', color: '#fff', padding: '1px 7px', borderRadius: 10, marginLeft: 4 }}>{urgentTotal}</span>}
+        </div>
 
         {noShows.length > 0 && <>
           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--er)", padding: "6px 0 2px" }}>{t.noShowsToday} ({noShows.length})</div>
@@ -269,14 +626,20 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
               {bookingAnalytics.weeks.map((w, i) => (
                 <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                   <span style={{ fontSize: 10, fontFamily: "var(--fm)", fontWeight: 700, color: "var(--t0)" }}>{w.count}</span>
-                  <div style={{ width: "100%", background: "var(--ok)", borderRadius: 4, height: Math.max(4, (w.count / bookingAnalytics.maxWeekCount) * 80), transition: "height .5s ease" }} />
+                  <div style={{
+                    width: "100%",
+                    borderRadius: 4,
+                    height: Math.max(4, (w.count / bookingAnalytics.maxWeekCount) * 80),
+                    transition: "height .5s ease",
+                    background: `linear-gradient(180deg, var(--ok) 0%, rgba(45,140,90,.6) 100%)`
+                  }} />
                   <span style={{ fontSize: 9, color: "var(--t2)" }}>{w.label}</span>
                 </div>
               ))}
             </div>
             {bookingAnalytics.weeks.some(w => w.noshows > 0) && (
               <div style={{ marginTop: 8, fontSize: 10, color: "var(--t2)" }}>
-                {t.absences}: {bookingAnalytics.weeks.map(w => w.noshows).join(" · ")}
+                {t.absences}: {bookingAnalytics.weeks.map(w => w.noshows).join(" \u00b7 ")}
               </div>
             )}
           </div>
@@ -287,25 +650,41 @@ export default function Dashboard({ clients, leads, trials, bookings = [], lang,
               <Icon n="grid" s={13} />{t.keyIndicators}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
-              <div style={{ textAlign: "center" }}>
+              <div style={{ textAlign: "center", padding: 10, background: bookingAnalytics.noshowRate > 10 ? 'var(--erg)' : 'var(--okg)', borderRadius: 'var(--rs)' }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: bookingAnalytics.noshowRate > 10 ? "var(--er)" : "var(--ok)" }}>{bookingAnalytics.noshowRate}%</div>
                 <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.noShowRate}</div>
               </div>
-              <div style={{ textAlign: "center" }}>
+              <div style={{ textAlign: "center", padding: 10, background: bookingAnalytics.trialConversion > 50 ? 'var(--okg)' : 'var(--wrg)', borderRadius: 'var(--rs)' }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: bookingAnalytics.trialConversion > 50 ? "var(--ok)" : "var(--wr)" }}>{bookingAnalytics.trialConversion}%</div>
                 <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.trialConversion}</div>
               </div>
-              <div style={{ textAlign: "center" }}>
+              <div style={{ textAlign: "center", padding: 10, background: 'var(--infg)', borderRadius: 'var(--rs)' }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--inf)" }}>{bookingAnalytics.totalSessions}</div>
                 <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.totalSessions}</div>
               </div>
-              <div style={{ textAlign: "center" }}>
+              <div style={{ textAlign: "center", padding: 10, background: 'var(--erg)', borderRadius: 'var(--rs)' }}>
                 <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--er)" }}>{bookingAnalytics.totalNoshows}</div>
                 <div style={{ fontSize: 10, color: "var(--t2)" }}>{t.totalAbsences}</div>
               </div>
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* NEW: Booking Heatmap */}
+      {bookingAnalytics && bookingAnalytics.hourCounts && (
+        <div className="cd" style={{ marginBottom: 20 }}>
+          <div className="cht" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon n="grid" s={13} />
+            {lang === 'fr' ? 'Heures de pointe' : lang === 'pt' ? 'Horarios de pico' : 'Peak Hours'}
+            <span style={{ fontSize: 9, color: 'var(--t2)', fontWeight: 400, marginLeft: 'auto' }}>
+              {lang === 'fr' ? 'Intensite par jour/heure' : lang === 'pt' ? 'Intensidade por dia/hora' : 'Intensity by day/hour'}
+            </span>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {renderHeatmap(bookingAnalytics.hourCounts, bookingAnalytics.dayNames)}
+          </div>
         </div>
       )}
     </div>

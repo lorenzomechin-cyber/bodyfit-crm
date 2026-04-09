@@ -7,6 +7,7 @@ import Login from './components/Login'
 import Sidebar from './components/Sidebar'
 import Icon from './components/Icon'
 import ErrorBoundary from './components/ErrorBoundary'
+import SearchModal from './components/SearchModal'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const ClientsPage = lazy(() => import('./pages/ClientsPage'))
 const LeadsMetaPage = lazy(() => import('./pages/LeadsMetaPage'))
@@ -26,6 +27,7 @@ export default function App() {
   const [init, sInit] = useState(false)
   const [authReady, sAuthReady] = useState(false)
   const [toast, sToast] = useState(null)
+  const [searchOpen, sSearchOpen] = useState(false)
   const defaultCfg = {
     subs: SUB,
     sources: SOURCES,
@@ -109,6 +111,18 @@ export default function App() {
     Object.values(pendingSyncs.current).forEach(fn => { try { fn() } catch (e) {} })
     pendingSyncs.current = {}
   }
+
+  // Global Cmd+K / Ctrl+K search shortcut
+  useEffect(() => {
+    const handleSearchKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        sSearchOpen(o => !o)
+      }
+    }
+    window.addEventListener('keydown', handleSearchKey)
+    return () => window.removeEventListener('keydown', handleSearchKey)
+  }, [])
 
   // Flush pending syncs on visibility change (more reliable than beforeunload)
   useEffect(() => {
@@ -273,6 +287,8 @@ export default function App() {
   const lN = leads.filter(l => l.stage === "notContacted").length
   const trN = trials.filter(tr => tr.stage !== "converted" && (!tr.followUpStatus || tr.followUpStatus === "noAnswer" || tr.followUpStatus === "msgSent")).length
   const bkToday = bookings.filter(b => b.date === new Date().toISOString().split("T")[0] && (b.status === "confirmed" || b.status === "completed")).length
+  const [nutNew, sNutNew] = useState(0)
+  useEffect(() => { if (!init) return; supabase.from("nutrition_profiles").select("id", { count: "exact", head: true }).eq("status", "new").eq("program_generated", false).then(r => { if (r.count != null) sNutNew(r.count) }) }, [init, pg])
 
   const fallback = <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--b0)", color: "var(--t2)" }}><h1 style={{ fontFamily: "var(--fm)", fontSize: 18 }}>BODY<em style={{ color: "var(--ac)", fontStyle: "normal" }}>FIT</em></h1></div>
 
@@ -290,8 +306,8 @@ export default function App() {
     <>
       <div className="app">
         <button className="mob" onClick={() => sSbO(!sbO)}><Icon n={sbO ? "x" : "filter"} s={16} /></button>
-        <Sidebar page={pg} setPage={sPg} user={user} onLogout={logout} lang={lang} setLang={sLang} leadCount={lN} trialCount={trN} bookingCount={bkToday} isOpen={sbO} onClose={() => sSbO(false)} />
-        <main className="mn"><div className="pg">
+        <Sidebar page={pg} setPage={sPg} user={user} onLogout={logout} lang={lang} setLang={sLang} leadCount={lN} trialCount={trN} bookingCount={bkToday} nutritionCount={nutNew} isOpen={sbO} onClose={() => sSbO(false)} />
+        <main className="mn"><div className="pg" key={pg} style={{ animation: "pgIn .25s ease" }}>
           <ErrorBoundary>
           <Suspense fallback={fallback}>
             {pg === "dashboard" && <Dashboard clients={clients} leads={leads} trials={trials} bookings={bookings} lang={lang} config={config} user={user} />}
@@ -306,6 +322,7 @@ export default function App() {
         </div></main>
       </div>
       {sbO && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.25)", zIndex: 99 }} onClick={() => sSbO(false)} />}
+      {searchOpen && <SearchModal clients={clients} leads={leads} trials={trials} bookings={bookings} onClose={() => sSearchOpen(false)} onNavigate={(page) => { sPg(page); sSearchOpen(false); sSbO(false) }} />}
       {toastEl}
     </>
   )
