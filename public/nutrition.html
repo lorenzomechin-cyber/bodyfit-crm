@@ -348,7 +348,8 @@ async function loadUser(){
     var prof=await sb.from("nutrition_profiles").select("*").eq("id",state.account.nutrition_profile_id).single();
     if(prof.data)state.profile=prof.data;
   }
-  var fb=await sb.from("weekly_feedbacks").select("*").eq("client_id",state.user.id).order("week_number",{ascending:true});
+  var fbId=state.account&&state.account.nutrition_profile_id?state.account.nutrition_profile_id:state.user.id;
+  var fb=await sb.from("weekly_feedbacks").select("*").eq("client_id",fbId).order("week_number",{ascending:true});
   if(fb.data)state.feedbacks=fb.data;
   state.loading=false;
   render();
@@ -388,7 +389,7 @@ async function onbSubmit(){
 async function submitFeedback(){
   var wk=state.feedbacks.length+1;
   var fb={
-    id:uid(),client_id:state.user.id,week_number:wk,
+    id:uid(),client_id:state.account&&state.account.nutrition_profile_id?state.account.nutrition_profile_id:state.user.id,week_number:wk,
     weight:parseFloat(document.getElementById("fb-weight").value)||null,
     waist:parseFloat(document.getElementById("fb-waist").value)||null,
     energy:parseInt(document.getElementById("fb-energy").value)||null,
