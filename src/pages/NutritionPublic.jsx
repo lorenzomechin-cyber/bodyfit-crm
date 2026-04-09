@@ -629,12 +629,17 @@ export default function NutritionPublic() {
   // ═══════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════
-  if (loading) return <div className="np"><style>{CSS}</style><div className="aw"><div style={{ textAlign: 'center' }}><div className="logo">BODY<em>FIT</em></div><p style={{ marginTop: 8, color: 'var(--tx3)' }}>Chargement...</p></div></div></div>
-  return <div className="np">
+  if (loading) return <>
     <style>{CSS}</style>
-    {!user && renderAuth()}
-    {user && account && !account.onboarding_done && renderOnboarding()}
-    {user && account && account.onboarding_done && renderApp()}
-    {toast && <div className="toast">{toast}</div>}
-  </div>
+    <div className="np"><div className="aw"><div style={{ textAlign: 'center' }}><div className="logo">BODY<em>FIT</em></div><p style={{ marginTop: 8, color: '#9A9A9A' }}>Chargement...</p></div></div></div>
+  </>
+  return <>
+    <style>{CSS}</style>
+    <div className="np">
+      {!user && renderAuth()}
+      {user && account && !account.onboarding_done && renderOnboarding()}
+      {user && account && account.onboarding_done && renderApp()}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  </>
 }
