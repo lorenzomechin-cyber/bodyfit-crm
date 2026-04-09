@@ -15,8 +15,7 @@ export function dbToClient(r) {
     medicalNotes: r.medical_notes, sessions: r.sessions || [],
     suspensionHistory: r.suspension_history || [], renewalHistory: r.renewal_history || [],
     referralCode: r.referral_code || '', referredBy: r.referred_by || '',
-    referralCount: r.referral_count || 0, referralBonus: r.referral_bonus || 0,
-    lang: r.lang || 'pt'
+    referralCount: r.referral_count || 0, referralBonus: r.referral_bonus || 0
   }
 }
 
@@ -37,8 +36,7 @@ export function dbToLead(r) {
     source: r.source, date: r.date, contactAttempts: r.contact_attempts,
     createdAt: r.created_at_str, lastActionDate: r.last_action_date, nextCallback: r.next_callback,
     address: r.address, birthDate: r.birth_date, nif: r.nif, origin: r.origin,
-    followUpStatus: r.follow_up_status,
-    lang: r.lang || 'pt'
+    followUpStatus: r.follow_up_status
   }
 }
 

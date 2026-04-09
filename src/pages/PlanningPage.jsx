@@ -31,10 +31,12 @@ export default function PlanningPage({ bookings, setBookings, clients, lang, tri
   const [waitlist, setWaitlist] = useState([])
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const { data } = await supabase.from('waitlist').select('*').eq('status', 'waiting')
-      if (data) setWaitlist(data)
+      if (data && !cancelled) setWaitlist(data)
     })()
+    return () => { cancelled = true }
   }, [bookings]) // reload when bookings change (a cancel might free a spot)
 
   // #8 — filter by booking type

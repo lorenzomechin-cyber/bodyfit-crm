@@ -6,6 +6,7 @@ import { mkClients, mkLeads, mkTrials } from './lib/sampleData'
 import Login from './components/Login'
 import Sidebar from './components/Sidebar'
 import Icon from './components/Icon'
+import ErrorBoundary from './components/ErrorBoundary'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const ClientsPage = lazy(() => import('./pages/ClientsPage'))
 const LeadsMetaPage = lazy(() => import('./pages/LeadsMetaPage'))
@@ -300,6 +301,7 @@ export default function App() {
         <button className="mob" onClick={() => sSbO(!sbO)}><Icon n={sbO ? "x" : "filter"} s={16} /></button>
         <Sidebar page={pg} setPage={sPg} user={user} onLogout={logout} lang={lang} setLang={sLang} leadCount={lN} trialCount={trN} bookingCount={bkToday} isOpen={sbO} onClose={() => sSbO(false)} />
         <main className="mn"><div className="pg">
+          <ErrorBoundary>
           <Suspense fallback={fallback}>
             {pg === "dashboard" && <Dashboard clients={clients} leads={leads} trials={trials} bookings={bookings} lang={lang} config={config} user={user} />}
             {pg === "clients" && <ClientsPage clients={clients} setClients={sClients} trials={trials} setTrials={sTrials} bookings={bookings} lang={lang} role={user.role} />}
@@ -309,6 +311,7 @@ export default function App() {
             {pg === "nutrition" && <NutritionPage lang={lang} />}
             {pg === "settings" && <Settings lang={lang} sLang={sLang} user={user} config={config} sConfig={sConfig} clients={clients} leads={leads} trials={trials} sClients={sClients} sLeads={sLeads} sTrials={sTrials} onLoad={() => { sClients(mkClients()); sLeads(mkLeads()); sTrials(mkTrials()) }} onReset={async () => { sClients([]); sLeads([]); sTrials([]); await sbDeleteAll("clients"); await sbDeleteAll("leads"); await sbDeleteAll("trials") }} />}
           </Suspense>
+          </ErrorBoundary>
         </div></main>
       </div>
       {sbO && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.25)", zIndex: 99 }} onClick={() => sSbO(false)} />}
