@@ -77,10 +77,8 @@ export default function App() {
       if (session?.user) {
         const u = { username: session.user.email, role: 'admin', name: session.user.email.split('@')[0], id: session.user.id }
         sUser(u)
-        try { localStorage.setItem("bf-user", JSON.stringify(u)) } catch (e) {}
       } else {
-        // No session — check localStorage for user (offline fallback)
-        try { const u = localStorage.getItem("bf-user"); if (u) sUser(JSON.parse(u)) } catch (e) {}
+        sUser(null)
       }
       sAuthReady(true)
     })

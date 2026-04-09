@@ -60,10 +60,10 @@ CREATE POLICY "Public read bookings limited"
   ON bookings FOR SELECT
   USING (true);
 
--- Public can insert bookings (for new reservations)
+-- Public can insert bookings (for new reservations) — require date + time_slot
 CREATE POLICY "Public insert bookings"
   ON bookings FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (client_name IS NOT NULL AND date IS NOT NULL AND time_slot IS NOT NULL);
 
 -- No direct UPDATE for anon — all updates go through cancel_booking RPC (SECURITY DEFINER)
 -- Admin (authenticated) can update directly
@@ -191,7 +191,12 @@ CREATE INDEX IF NOT EXISTS idx_waitlist_date ON waitlist(date);
 CREATE INDEX IF NOT EXISTS idx_waitlist_phone ON waitlist(client_phone);
 
 ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public all on waitlist" ON waitlist FOR ALL USING (true) WITH CHECK (true);
+
+-- Anon can only insert and read waitlist entries
+DROP POLICY IF EXISTS "Public all on waitlist" ON waitlist;
+CREATE POLICY "Public insert waitlist" ON waitlist FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Public read waitlist" ON waitlist FOR SELECT TO anon USING (true);
+CREATE POLICY "Admin full access waitlist" ON waitlist FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
 -- ─── 9. REFERRALS TRACKING ───

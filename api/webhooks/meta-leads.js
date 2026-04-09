@@ -1,6 +1,15 @@
+import { createHmac } from 'crypto'
 import { supabase } from '../_lib/supabase.js'
 import { sendWhatsApp } from '../_lib/whatsapp.js'
 import { todayStr, detectLang, getMsg } from '../_lib/helpers.js'
+
+function verifySignature(req) {
+  const sig = req.headers['x-hub-signature-256']
+  if (!sig || !process.env.META_APP_SECRET) return false
+  const raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+  const expected = 'sha256=' + createHmac('sha256', process.env.META_APP_SECRET).update(raw).digest('hex')
+  return sig === expected
+}
 
 export default async function handler(req, res) {
   // Meta webhook verification (GET)
@@ -17,6 +26,11 @@ export default async function handler(req, res) {
 
   // Meta webhook data (POST)
   if (req.method === 'POST') {
+    // Verify HMAC signature from Meta
+    if (process.env.META_APP_SECRET && !verifySignature(req)) {
+      return res.status(403).json({ error: 'Invalid signature' })
+    }
+
     try {
       const body = req.body
       const entries = body?.entry || []
