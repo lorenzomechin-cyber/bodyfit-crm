@@ -326,6 +326,14 @@ async function doSignup(){
   }
 }
 
+async function doForgotPw(){
+  var email=document.getElementById("auth-email").value;
+  if(!email){showAuthError("Entrez votre email d'abord");return}
+  var res=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+"/nutrition.html"});
+  if(res.error){showAuthError(res.error.message);return}
+  showAuthSuccess("Email de reinitialisation envoye ! Verifiez votre boite mail.");
+}
+
 async function doLogout(){
   await sb.auth.signOut();
   state.user=null;state.account=null;state.profile=null;state.feedbacks=[];
@@ -386,6 +394,14 @@ async function onbSubmit(){
 // FEEDBACK
 // ═══════════════════════════════════════════
 async function submitFeedback(){
+  // Block double feedback same week (7 days)
+  if(state.feedbacks.length>0){
+    var last=state.feedbacks[state.feedbacks.length-1];
+    if(last.created_at){
+      var daysSince=Math.floor((new Date()-new Date(last.created_at))/864e5);
+      if(daysSince<6){showToast("Prochain feedback dans "+(7-daysSince)+" jour(s)");return}
+    }
+  }
   var wk=state.feedbacks.length+1;
   var fb={
     id:uid(),client_id:state.user.id,week_number:wk,
@@ -444,6 +460,7 @@ function renderAuth(){
     '<div class="field"><div class="label">'+l.email+' <span class="req">*</span></div><input class="input" id="auth-email" type="email" placeholder="votre@email.com"/></div>'+
     '<div class="field"><div class="label">'+l.password+' <span class="req">*</span></div><input class="input" id="auth-pw" type="password" placeholder="Min. 6 caracteres" onkeydown="if(event.key===\'Enter\'){'+(mode==="login"?"doLogin()":"doSignup()")+'}"/></div>'+
     '<button class="btn btn-gold" onclick="'+(mode==="login"?"doLogin()":"doSignup()")+'">'+(mode==="login"?l.loginBtn:l.signupBtn)+'</button>'+
+    (mode==="login"?'<div style="text-align:center;margin-top:8px"><a style="font-size:11px;color:var(--gold);cursor:pointer" onclick="doForgotPw()">'+(l.forgotPw||"Mot de passe oublie ?")+'</a></div>':'')+
     '<div class="auth-toggle">'+(mode==="login"?l.noAccount+" <a onclick=\"state.authMode='signup';render()\">"+l.signupLink+"</a>":l.hasAccount+" <a onclick=\"state.authMode='login';render()\">"+l.loginLink+"</a>")+'</div>'+
     '</div></div></div>';
 }
@@ -689,7 +706,10 @@ function renderDashboard(l,a){
   if(remaining!==null&&remaining>0){
     h+='<div class="card"><div class="card-icon">📉</div><div class="card-label">'+l.remaining+'</div><div class="card-value" style="color:var(--blue)">'+remaining+'<span style="font-size:14px;color:var(--text2)"> kg</span></div></div>';
   }
-  h+='<div class="card"><div class="card-icon">📝</div><div class="card-label">Feedbacks</div><div class="card-value">'+state.feedbacks.length+'</div><div class="card-sub">'+l.weekN+'</div></div>';
+  var lastFbDate=lastFb&&lastFb.created_at?new Date(lastFb.created_at).toLocaleDateString():"";
+  var daysSinceFb=lastFb&&lastFb.created_at?Math.floor((new Date()-new Date(lastFb.created_at))/864e5):null;
+  var fbDateStr=daysSinceFb!==null?(daysSinceFb===0?"Aujourd'hui":daysSinceFb===1?"Hier":"Il y a "+daysSinceFb+"j"):"";
+  h+='<div class="card"><div class="card-icon">📝</div><div class="card-label">Feedbacks</div><div class="card-value">'+state.feedbacks.length+'</div><div class="card-sub">'+(fbDateStr?"Dernier: "+fbDateStr:l.weekN)+'</div></div>';
   h+='</div>';
 
   // Last feedback summary
@@ -776,11 +796,28 @@ function renderProgress(l,a){
     h+='</div></div>';
   }
 
+  // Waist chart
+  var waists=fbs.filter(function(f){return f.waist}).map(function(f){return f.waist});
+  if(waists.length>1){
+    var minWa=Math.min.apply(null,waists)-2;
+    var maxWa=Math.max.apply(null,waists)+2;
+    var rangeWa=maxWa-minWa||1;
+    h+='<div class="card card-lg" style="margin-top:14px"><div class="card-label">'+(l.waistChart||"Tour de taille")+'</div>';
+    h+='<div class="chart-area">';
+    waists.forEach(function(w,i){
+      var pct2=((w-minWa)/rangeWa)*100;
+      h+='<div class="chart-bar" style="height:'+Math.max(pct2,8)+'%;background:var(--blue-l)"><div class="tip">'+w+'cm</div></div>';
+    });
+    h+='</div><div class="chart-labels">';
+    fbs.filter(function(f){return f.waist}).forEach(function(f,i){h+='<span>'+l.weekN+(i+1)+'</span>'});
+    h+='</div></div>';
+  }
+
   // Stats table
   h+='<div class="card" style="margin-top:14px"><div class="card-label">Details par semaine</div>';
   fbs.forEach(function(fb){
     h+='<div class="stat-row"><span class="stat-label" style="min-width:50px;font-weight:600">'+l.weekN+' '+fb.week_number+'</span>'+
-      '<span class="stat-val" style="font-size:11px">'+(fb.weight?fb.weight+'kg':'—')+' | E:'+fb.energy+'/5 | F:'+(fb.hunger||"—")+'/5 | A:'+(fb.adherence||"—")+'% | 😊'+(fb.mood||"—")+'/5</span></div>';
+      '<span class="stat-val" style="font-size:11px">'+(fb.weight?fb.weight+'kg':'—')+' | '+(fb.waist?fb.waist+'cm':'—')+' | E:'+fb.energy+'/5 | F:'+(fb.hunger||"—")+'/5 | A:'+(fb.adherence||"—")+'% | 😊'+(fb.mood||"—")+'/5</span></div>';
   });
   h+='</div>';
 

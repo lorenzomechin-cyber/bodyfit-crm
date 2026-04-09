@@ -104,31 +104,43 @@ export default function NutritionPage({ lang }) {
           <div className="cd" style={{ padding: 12 }}><div className="sl">Feedbacks</div><div style={{ fontSize: 13, fontWeight: 600 }}>{pfb.length}</div></div>
         </div>
 
-        {!p.program_generated && <div className="cd" style={{ padding: 14, marginBottom: 14 }}>
+        <div className="cd" style={{ padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--t2)" }}>URL du programme PDF</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input className="fi" style={{ flex: 1, minWidth: 200 }} placeholder="https://..." value={urlVal} onChange={e => sUrlVal(e.target.value)} />
-            <button className="bt bp bsm" onClick={() => { markDone(p.id, urlVal); sSel({ ...p, program_generated: true, status: "done" }) }}>Marquer envoy&eacute;</button>
+            {!p.program_generated && <button className="bt bp bsm" onClick={() => { markDone(p.id, urlVal); sSel({ ...p, program_generated: true, status: "done" }) }}>Marquer envoy&eacute;</button>}
+            {p.program_generated && urlVal && urlVal !== (accounts.find(a2 => a2.nutrition_profile_id === p.id)?.active_program_url || "") && <button className="bt bp bsm" onClick={async () => { await supabase.from("client_accounts").update({ active_program_url: urlVal }).eq("nutrition_profile_id", p.id); sSel({ ...p }) }}>Mettre a jour l'URL</button>}
             {p.status === "new" && <button className="bt bs bsm" onClick={() => { markProg(p.id); sSel({ ...p, status: "in_progress" }) }}>Passer en cours</button>}
+            {p.program_generated && <button className="bt bs bsm" onClick={async () => { await supabase.from("nutrition_profiles").update({ program_generated: false, status: "in_progress" }).eq("id", p.id); sProfiles(prev => prev.map(x => x.id === p.id ? { ...x, program_generated: false, status: "in_progress" } : x)); sSel({ ...p, program_generated: false, status: "in_progress" }) }}>Rouvrir</button>}
           </div>
-        </div>}
+        </div>
 
-        {pfb.length > 0 && <div className="cd" style={{ padding: 14, marginBottom: 14 }}>
-          <div className="cht">Feedbacks hebdomadaires ({pfb.length})</div>
-          <div style={{ overflowX: "auto" }}>
-            <table><thead><tr>
-              {["Sem", "Poids", "Taille", "\u00c9nergie", "Faim", "Adh\u00e9rence", "Sommeil", "Eau", "Humeur", "Notes", ""].map(h => <th key={h}>{h}</th>)}
-            </tr></thead><tbody>
-              {pfb.map(fb => <tr key={fb.id}>
-                <td>{fb.week_number || "\u2014"}</td><td>{fb.weight ? fb.weight + "kg" : "\u2014"}</td><td>{fb.waist ? fb.waist + "cm" : "\u2014"}</td>
-                <td>{fb.energy ? fb.energy + "/5" : "\u2014"}</td><td>{fb.hunger ? fb.hunger + "/5" : "\u2014"}</td><td>{fb.adherence ? fb.adherence + "%" : "\u2014"}</td>
-                <td>{fb.sleep_hours ? fb.sleep_hours + "h" : "\u2014"}</td><td>{fb.water_liters ? fb.water_liters + "L" : "\u2014"}</td>
-                <td>{fb.mood ? fb.mood + "/5" : "\u2014"}</td><td style={{ fontSize: 10, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{fb.notes || ""}</td>
-                <td><button className="bg0" style={{ color: "var(--er)", padding: 2 }} onClick={() => deleteFeedback(fb.id)} title="Supprimer">&#10005;</button></td>
-              </tr>)}
-            </tbody></table>
+        {pfb.length > 0 && <>
+          {/* Weight & waist chart */}
+          {(() => { const ws = pfb.filter(f => f.weight).sort((a,b) => a.week_number - b.week_number); if (ws.length < 2) return null; const weights = ws.map(f => f.weight); const minW = Math.min(...weights) - 2; const maxW = Math.max(...weights) + 2; const rng = maxW - minW || 1; return <div className="cd" style={{ padding: 14, marginBottom: 14 }}>
+            <div className="cht">Progression poids</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 120, padding: "8px 0", borderBottom: "1px solid var(--b4)" }}>
+              {ws.map((f, i) => { const pct = ((f.weight - minW) / rng) * 100; return <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}><span style={{ fontSize: 8, fontWeight: 600, color: "var(--ac)" }}>{f.weight}</span><div style={{ width: "100%", maxWidth: 28, borderRadius: "4px 4px 0 0", background: "var(--acg)", height: Math.max(pct, 8) + "%", transition: "height .5s" }} /></div> })}
+            </div>
+            <div style={{ display: "flex", gap: 3, marginTop: 4 }}>{ws.map((f, i) => <span key={i} style={{ flex: 1, textAlign: "center", fontSize: 8, color: "var(--t2)" }}>S{f.week_number}</span>)}</div>
+          </div> })()}
+          <div className="cd" style={{ padding: 14, marginBottom: 14 }}>
+            <div className="cht">Feedbacks hebdomadaires ({pfb.length})</div>
+            <div style={{ overflowX: "auto" }}>
+              <table><thead><tr>
+                {["Sem", "Poids", "Taille", "\u00c9nergie", "Faim", "Adh\u00e9rence", "Sommeil", "Eau", "Humeur", "Notes", ""].map(h => <th key={h}>{h}</th>)}
+              </tr></thead><tbody>
+                {pfb.map(fb => <tr key={fb.id}>
+                  <td>{fb.week_number || "\u2014"}</td><td>{fb.weight ? fb.weight + "kg" : "\u2014"}</td><td>{fb.waist ? fb.waist + "cm" : "\u2014"}</td>
+                  <td>{fb.energy ? fb.energy + "/5" : "\u2014"}</td><td>{fb.hunger ? fb.hunger + "/5" : "\u2014"}</td><td>{fb.adherence ? fb.adherence + "%" : "\u2014"}</td>
+                  <td>{fb.sleep_hours ? fb.sleep_hours + "h" : "\u2014"}</td><td>{fb.water_liters ? fb.water_liters + "L" : "\u2014"}</td>
+                  <td>{fb.mood ? fb.mood + "/5" : "\u2014"}</td><td style={{ fontSize: 10, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{fb.notes || ""}</td>
+                  <td><button className="bg0" style={{ color: "var(--er)", padding: 2 }} onClick={() => deleteFeedback(fb.id)} title="Supprimer">&#10005;</button></td>
+                </tr>)}
+              </tbody></table>
+            </div>
           </div>
-        </div>}
+        </>}
 
         <div className="cd" style={{ padding: 14 }}>
           <div className="cht">Toutes les r&eacute;ponses</div>
@@ -202,7 +214,8 @@ export default function NutritionPage({ lang }) {
                 const days = dago(p.created_at); const st2 = p.program_generated ? "done" : p.status === "in_progress" ? "prog" : "new"
                 const stC = { new: "#C47F17", prog: "#2E6DA4", done: "#2D8C5A" }; const stL = { new: t.nutNew, prog: t.nutInProgress, done: t.nutDone }
                 const dayCol = p.program_generated ? "#2D8C5A" : days > 5 ? "#C43333" : days > 2 ? "#C47F17" : "#2D8C5A"
-                const fbC = feedbacks.filter(f => f.client_id === p.id).length
+                const acctL = accounts.find(a => a.nutrition_profile_id === p.id)
+                const fbC = feedbacks.filter(f => f.client_id === p.id || (acctL && f.client_id === acctL.id)).length
                 return <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => { sSel(p); sUrlVal("") }}>
                   <td><strong>{p.name || "\u2014"}</strong>{p.email ? <div style={{ fontSize: 9, color: "var(--t2)" }}>{p.email}</div> : null}</td>
                   <td style={{ fontSize: 11 }}>{p.phone ? <a href={"tel:" + p.phone} onClick={e => e.stopPropagation()} style={{ color: "var(--ac)", textDecoration: "none" }}>{p.phone}</a> : "\u2014"}</td>
