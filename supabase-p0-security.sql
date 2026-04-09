@@ -192,43 +192,76 @@ CREATE POLICY "Public all on waitlist" ON waitlist FOR ALL USING (true) WITH CHE
 -- ─── 10. NUTRITION PROFILES (questionnaire responses) ───
 CREATE TABLE IF NOT EXISTS nutrition_profiles (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  name TEXT NOT NULL,
+  name TEXT,
   email TEXT,
   phone TEXT,
   language TEXT DEFAULT 'pt',
-  -- Personal info
+  -- Step 1: Personal data
+  sex TEXT,
   age TEXT,
-  gender TEXT,
-  height TEXT,
   weight TEXT,
-  -- Goals & lifestyle
+  height TEXT,
+  waist TEXT,
+  body_fat TEXT,
+  target_weight TEXT,
+  timeline TEXT,
+  -- Step 2: Goal
   goal TEXT,
   goal_detail TEXT,
-  activity_level TEXT,
+  -- Step 3: Activity
   ems_frequency TEXT,
-  sleep_hours TEXT,
-  stress_level TEXT,
-  water_intake TEXT,
-  -- Diet
-  diet_type TEXT,
+  ems_time TEXT,
+  other_activities TEXT,
+  other_intensity TEXT,
+  daily_activity TEXT,
+  -- Step 4: Health
+  pathologies TEXT,
+  pregnant TEXT,
+  medications TEXT,
   allergies TEXT,
   intolerances TEXT,
-  supplements TEXT,
+  diet_type TEXT,
+  menstrual_cycle TEXT,
+  -- Step 5: Lifestyle
+  sleep_hours TEXT,
+  sleep_quality TEXT,
+  stress_level TEXT,
+  work_schedule TEXT,
+  meal_times TEXT,
+  -- Step 6: Habits
   meals_per_day TEXT,
-  cooking_time TEXT,
-  weekly_budget TEXT,
-  -- Habits
-  breakfast_habit TEXT,
-  snack_habit TEXT,
+  breakfast TEXT,
+  snacking TEXT,
+  snack_type TEXT,
   alcohol TEXT,
   coffee TEXT,
-  -- Medical
-  medical_conditions TEXT,
-  medications TEXT,
-  digestive_issues TEXT,
-  -- Extra
+  sodas TEXT,
+  fruits_veg TEXT,
+  water_intake TEXT,
+  meals_outside TEXT,
+  -- Step 7: Preferences
+  dislikes TEXT,
+  likes TEXT,
+  cuisine_prefs TEXT,
+  cook_time TEXT,
+  cook_level TEXT,
+  cook_for TEXT,
+  meal_prep TEXT,
+  equipment TEXT,
+  -- Step 8: Budget
+  weekly_budget TEXT,
+  grocery_stores TEXT,
+  -- Step 9: Supplements
+  open_to_supplements TEXT,
+  supplements TEXT,
+  -- Step 10: Motivation
+  previous_diet TEXT,
+  previous_diet_detail TEXT,
+  main_obstacle TEXT,
+  program_style TEXT,
   motivation TEXT,
-  extra_notes TEXT,
+  final_note TEXT,
+  rgpd TEXT,
   -- Status
   status TEXT DEFAULT 'new',
   program_generated BOOLEAN DEFAULT false,
@@ -256,11 +289,15 @@ CREATE POLICY "Admin full access nutrition_profiles"
   WITH CHECK (true);
 
 
--- ─── 11. CLIENT ACCOUNTS (links profiles to programs) ───
+-- ─── 11. CLIENT ACCOUNTS (client portal accounts) ───
 CREATE TABLE IF NOT EXISTS client_accounts (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  nutrition_profile_id TEXT REFERENCES nutrition_profiles(id),
+  id TEXT PRIMARY KEY,  -- matches auth.users.id
+  email TEXT,
+  name TEXT,
   phone TEXT,
+  language TEXT DEFAULT 'fr',
+  onboarding_done BOOLEAN DEFAULT false,
+  nutrition_profile_id TEXT REFERENCES nutrition_profiles(id),
   active_program_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -294,6 +331,7 @@ CREATE TABLE IF NOT EXISTS weekly_feedbacks (
   water_liters NUMERIC,
   mood INT,
   notes TEXT,
+  cycle_phase TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

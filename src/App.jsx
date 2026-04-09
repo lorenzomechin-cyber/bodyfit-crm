@@ -15,12 +15,10 @@ const Settings = lazy(() => import('./pages/Settings'))
 const PlanningPage = lazy(() => import('./pages/PlanningPage'))
 const BookingPublic = lazy(() => import('./pages/BookingPublic'))
 const NutritionPublic = lazy(() => import('./pages/NutritionPublic'))
-const FeedbackPublic = lazy(() => import('./pages/FeedbackPublic'))
 
 export default function App() {
   const [isPublicBooking] = useState(() => window.location.hash === "#book")
-  const [isPublicNutrition] = useState(() => window.location.hash === "#nutrition")
-  const [isPublicFeedback] = useState(() => window.location.hash === "#feedback")
+  const [isPublicNutrition] = useState(() => window.location.hash.startsWith("#nutrition"))
   const [user, sUser] = useState(null)
   const [lang, sLang] = useState("fr")
   const [pg, sPg] = useState("dashboard")
@@ -281,7 +279,6 @@ export default function App() {
 
   if (isPublicBooking) return <Suspense fallback={fallback}><BookingPublic /></Suspense>
   if (isPublicNutrition) return <Suspense fallback={fallback}><NutritionPublic /></Suspense>
-  if (isPublicFeedback) return <Suspense fallback={fallback}><FeedbackPublic /></Suspense>
 
   if (!authReady || (!user && !init)) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--b0)", color: "var(--t2)" }}>
