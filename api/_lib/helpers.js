@@ -29,6 +29,8 @@ export function formatDateFR(d) {
   return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+export const GOOGLE_REVIEW_URL = 'https://g.page/r/CZtvzg-F9CswEAE/review'
+
 export function detectLang(phone) {
   if (!phone) return 'pt'
   const clean = phone.replace(/[\s\-()]/g, '')

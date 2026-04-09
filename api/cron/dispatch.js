@@ -1,6 +1,6 @@
 import { supabase } from '../_lib/supabase.js'
 import { sendWhatsApp } from '../_lib/whatsapp.js'
-import { todayStr, tomorrowStr, daysTo, nowHour, dayOfWeek, isWorkday, formatDateFR, detectLang, getMsg } from '../_lib/helpers.js'
+import { todayStr, tomorrowStr, daysTo, nowHour, dayOfWeek, isWorkday, formatDateFR, detectLang, getMsg, GOOGLE_REVIEW_URL } from '../_lib/helpers.js'
 
 export default async function handler(req, res) {
   // Verify cron secret (Vercel sends this header)
@@ -306,7 +306,7 @@ async function birthdayWish() {
 // ── Agent: Review request ────────────────────────────────────────
 async function reviewRequest() {
   const today = todayStr()
-  const GOOGLE_REVIEW_URL = 'https://g.page/r/CZtvzg-F9CswEAE/review'
+  // GOOGLE_REVIEW_URL imported from helpers.js
 
   // Get today's completed bookings
   const { data: completedBookings } = await supabase

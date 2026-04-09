@@ -124,6 +124,7 @@ CREATE POLICY "Admin full access config"
 -- ─── 6. ADDITIONAL INDEXES ───
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_date_slot ON bookings(date, time_slot);
+CREATE INDEX IF NOT EXISTS idx_trials_follow_up_status ON trials(follow_up_status);
 
 
 -- ═══════════════════════════════════════════════════════════

@@ -57,13 +57,12 @@ export default function App() {
       const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
       const minDate = thirtyDaysAgo.toISOString().split("T")[0]
       const bkRes = await supabase.from("bookings").select("*").gte("date", minDate)
-      if (bkRes.error) { hasError = true; console.error("bookings load", bkRes.error) }
+      if (bkRes.error) hasError = true
       sBookings((bkRes.data || []).map(dbToBooking))
       const cfgRes = await supabase.from("config").select("data").eq("id", "main").single()
       if (cfgRes.data && cfgRes.data.data) sConfig(cfgRes.data.data)
     } catch (e) {
       hasError = true
-      console.error("Load error", e)
     }
     if (hasError) showToast(t.syncLoadError || "Erreur de chargement des donnees", "error")
     sInit(true)
@@ -103,7 +102,7 @@ export default function App() {
       try {
         await fn()
       } catch (e) {
-        console.error("Sync error", key, e)
+
         showToast(t.syncSaveError || "Erreur de sauvegarde", "error")
       }
     }, delay || 800)
@@ -133,7 +132,7 @@ export default function App() {
     debouncedSync("clients", async () => {
       if (clients.length > 0) {
         const res = await supabase.from("clients").upsert(clients.map(clientToDb), { onConflict: "id" })
-        if (res.error) { console.error("clients sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde clients", "error") }
+        if (res.error) showToast(t.syncSaveError || "Erreur de sauvegarde clients", "error")
       }
     })
   }, [clients, init])
@@ -143,7 +142,7 @@ export default function App() {
     debouncedSync("leads", async () => {
       if (leads.length > 0) {
         const res = await supabase.from("leads").upsert(leads.map(leadToDb), { onConflict: "id" })
-        if (res.error) { console.error("leads sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde leads", "error") }
+        if (res.error) showToast(t.syncSaveError || "Erreur de sauvegarde leads", "error")
       }
     })
   }, [leads, init])
@@ -153,7 +152,7 @@ export default function App() {
     debouncedSync("trials", async () => {
       if (trials.length > 0) {
         const res = await supabase.from("trials").upsert(trials.map(trialToDb), { onConflict: "id" })
-        if (res.error) { console.error("trials sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde essais", "error") }
+        if (res.error) showToast(t.syncSaveError || "Erreur de sauvegarde essais", "error")
       }
     })
   }, [trials, init])
@@ -164,7 +163,7 @@ export default function App() {
     debouncedSync("bookings", async () => {
       if (bookings.length > 0) {
         const res = await supabase.from("bookings").upsert(bookings.map(bookingToDb), { onConflict: "id" })
-        if (res.error) { console.error("bookings sync", res.error); showToast(t.syncSaveError || "Erreur de sauvegarde reservations", "error") }
+        if (res.error) showToast(t.syncSaveError || "Erreur de sauvegarde reservations", "error")
       }
     })
   }, [bookings, init])
@@ -194,7 +193,7 @@ export default function App() {
           }
           return [...merged.values()]
         })
-      } catch (e) { console.error("Booking poll error", e) }
+      } catch (e) { /* poll error — silent retry next interval */ }
     }, 30000)
     return () => clearInterval(iv)
   }, [init])
@@ -211,7 +210,7 @@ export default function App() {
           for (const c of prev) if (!remoteMap.has(c.id)) remoteMap.set(c.id, c)
           return [...remoteMap.values()]
         })
-      } catch (e) { console.error("Client poll error", e) }
+      } catch (e) { /* poll error — silent retry next interval */ }
     }, 30000)
     return () => clearInterval(iv)
   }, [init])
@@ -228,7 +227,7 @@ export default function App() {
           for (const l of prev) if (!remoteMap.has(l.id)) remoteMap.set(l.id, l)
           return [...remoteMap.values()]
         })
-      } catch (e) { console.error("Lead poll error", e) }
+      } catch (e) { /* poll error — silent retry next interval */ }
     }, 30000)
     return () => clearInterval(iv)
   }, [init])
@@ -245,7 +244,7 @@ export default function App() {
           for (const tr of prev) if (!remoteMap.has(tr.id)) remoteMap.set(tr.id, tr)
           return [...remoteMap.values()]
         })
-      } catch (e) { console.error("Trial poll error", e) }
+      } catch (e) { /* poll error — silent retry next interval */ }
     }, 30000)
     return () => clearInterval(iv)
   }, [init])
@@ -254,7 +253,7 @@ export default function App() {
     if (!init) return
     debouncedSync("config", async () => {
       const res = await supabase.from("config").upsert({ id: "main", data: config, updated_at: new Date().toISOString() })
-      if (res.error) console.error("config sync", res.error)
+      if (res.error) showToast("Erreur config", "error")
     })
   }, [config, init])
 
