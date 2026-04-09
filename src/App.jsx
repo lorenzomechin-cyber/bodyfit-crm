@@ -14,24 +14,7 @@ const TrialsPage = lazy(() => import('./pages/TrialsPage'))
 const NutritionPage = lazy(() => import('./pages/NutritionPage'))
 const Settings = lazy(() => import('./pages/Settings'))
 const PlanningPage = lazy(() => import('./pages/PlanningPage'))
-const BookingPublic = lazy(() => import('./pages/BookingPublic'))
-const NutritionPublic = lazy(() => import('./pages/NutritionPublic'))
-
-// Router: public pages bypass all CRM logic
-const isPublicBooking = window.location.hash === "#book"
-const isPublicNutrition = window.location.hash.startsWith("#nutrition")
-
 export default function App() {
-  if (isPublicBooking) return <Suspense fallback={<PublicFallback />}><BookingPublic /></Suspense>
-  if (isPublicNutrition) return <Suspense fallback={<PublicFallback />}><NutritionPublic /></Suspense>
-  return <CrmApp />
-}
-
-function PublicFallback() {
-  return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAF8" }}><h1 style={{ fontFamily: "system-ui", fontSize: 18 }}>BODY<em style={{ color: "#B8860B", fontStyle: "normal" }}>FIT</em></h1></div>
-}
-
-function CrmApp() {
   const [user, sUser] = useState(null)
   const [lang, sLang] = useState("fr")
   const [pg, sPg] = useState("dashboard")
