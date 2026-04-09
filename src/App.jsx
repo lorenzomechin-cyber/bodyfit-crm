@@ -20,6 +20,16 @@ const NutritionPublic = lazy(() => import('./pages/NutritionPublic'))
 export default function App() {
   const [isPublicBooking] = useState(() => window.location.hash === "#book")
   const [isPublicNutrition] = useState(() => window.location.hash.startsWith("#nutrition"))
+  const isPublicRoute = isPublicBooking || isPublicNutrition
+
+  // Public routes render their own standalone app — skip all CRM hooks
+  if (isPublicRoute) {
+    const fallback = <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAF8" }}><h1 style={{ fontFamily: "system-ui", fontSize: 18 }}>BODY<em style={{ color: "#B8860B", fontStyle: "normal" }}>FIT</em></h1></div>
+    return <Suspense fallback={fallback}>
+      {isPublicBooking && <BookingPublic />}
+      {isPublicNutrition && <NutritionPublic />}
+    </Suspense>
+  }
   const [user, sUser] = useState(null)
   const [lang, sLang] = useState("fr")
   const [pg, sPg] = useState("dashboard")
@@ -283,9 +293,6 @@ export default function App() {
 
   // Toast component
   const toastEl = toast ? <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, background: toast.type === "error" ? "var(--er)" : "var(--ok)", color: "#fff", padding: "10px 20px", borderRadius: 8, fontSize: 12, fontWeight: 600, boxShadow: "0 4px 16px rgba(0,0,0,.15)", animation: "fIn .2s ease", display: "flex", alignItems: "center", gap: 8, maxWidth: 360 }}><Icon n={toast.type === "error" ? "x" : "check"} s={14} />{toast.msg}</div> : null
-
-  if (isPublicBooking) return <Suspense fallback={fallback}><BookingPublic /></Suspense>
-  if (isPublicNutrition) return <Suspense fallback={fallback}><NutritionPublic /></Suspense>
 
   if (!authReady || (!user && !init)) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--b0)", color: "var(--t2)" }}>
