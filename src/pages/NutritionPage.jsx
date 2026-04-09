@@ -50,6 +50,26 @@ export default function NutritionPage({ lang }) {
     sProfiles(prev => prev.map(p => p.id === id ? { ...p, status: "in_progress" } : p))
   }
 
+  async function deleteProfile(id) {
+    if (!window.confirm("Supprimer ce profil nutrition et toutes ses donnees ?")) return
+    const acct = accounts.find(a => a.nutrition_profile_id === id)
+    if (acct) {
+      await supabase.from("weekly_feedbacks").delete().eq("client_id", acct.id)
+      await supabase.from("client_accounts").update({ nutrition_profile_id: null, onboarding_done: false, active_program_url: null }).eq("id", acct.id)
+    }
+    await supabase.from("weekly_feedbacks").delete().eq("client_id", id)
+    await supabase.from("nutrition_profiles").delete().eq("id", id)
+    sProfiles(prev => prev.filter(p => p.id !== id))
+    sFeedbacks(prev => prev.filter(f => f.client_id !== id && (!acct || f.client_id !== acct.id)))
+    sSel(null)
+  }
+
+  async function deleteFeedback(fbId) {
+    if (!window.confirm("Supprimer ce feedback ?")) return
+    await supabase.from("weekly_feedbacks").delete().eq("id", fbId)
+    sFeedbacks(prev => prev.filter(f => f.id !== fbId))
+  }
+
   if (!loaded) return <div className="fin" style={{ padding: 40, textAlign: "center", color: "var(--t2)" }}>Chargement...</div>
 
   if (sel) {
@@ -66,6 +86,7 @@ export default function NutritionPage({ lang }) {
           <button className="bt bs bsm" onClick={() => sSel(null)}>&larr; Retour</button>
           <h2 style={{ flex: 1 }}>{p.name || "Sans nom"}</h2>
           <button className="bt bs bsm" onClick={() => { const skip = new Set(["id","created_at","status","program_generated"]); const txt = Object.keys(p).filter(k => !skip.has(k) && p[k]).map(k => k.replace(/_/g," ").toUpperCase() + ": " + String(p[k])).join("\n"); navigator.clipboard.writeText(txt); alert("Reponses copiees !") }}>Copier reponses</button>
+          <button className="bt bdd bsm" onClick={() => deleteProfile(p.id)}>Supprimer</button>
           <span style={{ fontSize: 10, fontWeight: 600, color: dayCol }}>{p.program_generated ? "\u2713 Envoy\u00e9" : days + "j d\u2019attente"}</span>
           <span style={{ background: stCol + "18", color: stCol, padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, marginLeft: 6 }}>{stLabel}</span>
         </div>
@@ -96,13 +117,14 @@ export default function NutritionPage({ lang }) {
           <div className="cht">Feedbacks hebdomadaires ({pfb.length})</div>
           <div style={{ overflowX: "auto" }}>
             <table><thead><tr>
-              {["Sem", "Poids", "Taille", "\u00c9nergie", "Faim", "Adh\u00e9rence", "Sommeil", "Eau", "Humeur", "Notes"].map(h => <th key={h}>{h}</th>)}
+              {["Sem", "Poids", "Taille", "\u00c9nergie", "Faim", "Adh\u00e9rence", "Sommeil", "Eau", "Humeur", "Notes", ""].map(h => <th key={h}>{h}</th>)}
             </tr></thead><tbody>
               {pfb.map(fb => <tr key={fb.id}>
                 <td>{fb.week_number || "\u2014"}</td><td>{fb.weight ? fb.weight + "kg" : "\u2014"}</td><td>{fb.waist ? fb.waist + "cm" : "\u2014"}</td>
                 <td>{fb.energy ? fb.energy + "/5" : "\u2014"}</td><td>{fb.hunger ? fb.hunger + "/5" : "\u2014"}</td><td>{fb.adherence ? fb.adherence + "%" : "\u2014"}</td>
                 <td>{fb.sleep_hours ? fb.sleep_hours + "h" : "\u2014"}</td><td>{fb.water_liters ? fb.water_liters + "L" : "\u2014"}</td>
                 <td>{fb.mood ? fb.mood + "/5" : "\u2014"}</td><td style={{ fontSize: 10, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{fb.notes || ""}</td>
+                <td><button className="bg0" style={{ color: "var(--er)", padding: 2 }} onClick={() => deleteFeedback(fb.id)} title="Supprimer">&#10005;</button></td>
               </tr>)}
             </tbody></table>
           </div>
