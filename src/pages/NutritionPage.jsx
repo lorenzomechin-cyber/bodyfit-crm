@@ -3,6 +3,165 @@ import { supabase } from '../lib/supabase'
 import { T } from '../lib/i18n'
 import Icon from '../components/Icon'
 
+function buildAIPrompt(p) {
+  const skip = new Set(["id", "created_at", "status", "program_generated", "user_id"])
+  const data = Object.keys(p)
+    .filter(k => !skip.has(k) && p[k] !== null && p[k] !== undefined && p[k] !== "")
+    .map(k => `${k.replace(/_/g, " ").toUpperCase()}: ${String(p[k])}`)
+    .join("\n")
+  const lg = (p.language || "fr").toLowerCase()
+  return `Tu es un expert en nutrition sportive diplome. Cree un programme nutritionnel personnalise de 4 semaines pour ce client, en respectant STRICTEMENT toutes ses contraintes, preferences et restrictions.
+
+===== PROFIL CLIENT =====
+CLIENT_ID: ${p.id}
+${data}
+
+===== INSTRUCTIONS DE CALCUL =====
+
+1. BMR (Mifflin-St Jeor):
+   - Homme: BMR = 10*poids + 6.25*taille - 5*age + 5
+   - Femme: BMR = 10*poids + 6.25*taille - 5*age - 161
+
+2. TDEE selon activite:
+   - Sedentaire: BMR * 1.2
+   - + 2x EMS/sem: BMR * 1.45
+   - + 3x EMS/sem: BMR * 1.55
+   - Actif: BMR * 1.65+
+
+3. Calories cibles selon objectif:
+   - Perte de poids: TDEE - 400
+   - Recomposition: TDEE + 150
+   - Prise de masse: TDEE + 300 a 500
+   - Maintien: TDEE
+
+4. Macros:
+   - Proteines: 2g/kg (prise de masse), 2.2g/kg (perte), 1.8g/kg (maintien)
+   - Lipides: 25-30% des calories
+   - Glucides: le reste
+
+===== INSTRUCTIONS DE PROGRAMME =====
+
+Genere 4 semaines x 7 jours x 4 repas = 112 repas UNIQUES et ADAPTES:
+- Respecte les intolerances/allergies/degouts A LA LETTRE
+- Respecte le temps de cuisine (si 5-10 min max, AUCUNE recette longue)
+- Respecte le budget (Lidl/budget serre = ingredients abordables)
+- Si le client ne prend pas de petit-dej, propose un shake proteine rapide (30 sec)
+- Jours EMS: pre-workout (1h avant) et shake recuperation (30 min apres)
+- Dimanche: seance meal prep de 2h + 3 autres repas
+- Utilise UNIQUEMENT l'equipement disponible
+- Varie les recettes entre les semaines (pas de copier-coller)
+
+LANGUE DE SORTIE: "${lg}" (fr = francais, pt = portugais, en = anglais)
+Tous les noms de repas, descriptions, shopping list et conseils DOIVENT etre dans cette langue.
+
+===== FORMAT DE SORTIE =====
+
+Reponds UNIQUEMENT avec un JSON valide. AUCUN texte avant ou apres, AUCUN \`\`\`json\`\`\`. Format EXACT:
+
+{
+  "client_id": "${p.id}",
+  "language": "${lg}",
+  "client": {
+    "name": "${(p.name || '').replace(/"/g, '\\"')}",
+    "age": 29,
+    "sex": "M",
+    "weight": 86,
+    "height": 188,
+    "target_weight": 85,
+    "body_fat": 20,
+    "waist": 92,
+    "goal": "Objectif principal",
+    "goal_detail": "Description detaillee de l'objectif en 1 phrase",
+    "activity": "Niveau d'activite + frequence EMS",
+    "intolerances": "Intolerances ou 'Aucune'",
+    "dislikes": "Ce qu'il n'aime pas",
+    "likes": "Ce qu'il aime",
+    "cuisine_pref": "Cuisine preferee",
+    "cook_time": "Temps de cuisine max",
+    "budget": "Budget hebdomadaire",
+    "obstacle": "Principaux obstacles",
+    "sleep": "Qualite et duree sommeil",
+    "stress": "Niveau de stress",
+    "water": "Consommation actuelle d'eau",
+    "equip": "Equipement de cuisine disponible",
+    "meal_prep": "Ouvert au meal prep ou non",
+    "program_style": "Style de programme prefere"
+  },
+  "macros": {
+    "bmr": 1885,
+    "tdee": 2733,
+    "calories": 2880,
+    "protein": 172,
+    "carbs": 258,
+    "fat": 90
+  },
+  "strategy": "Strategie nutritionnelle personnalisee expliquee en 2-3 phrases",
+  "adaptations": [
+    ["Programme", "Tres cadre - chaque repas detaille"],
+    ["Cuisine", "5-10 min max - recettes ultra-simples"],
+    ["Equipement", "Airfryer + Micro-ondes + Four"],
+    ["Meal prep", "Dimanche 2h pour toute la semaine"],
+    ["Budget", "50-70 EUR/sem (Lidl, Continente, Pingo Doce)"],
+    ["Obstacles", "Manque de temps -> meal prep, variete -> menus varies"],
+    ["Points critiques", "Petit-dej manquant, hydratation insuffisante, fruits/legumes"]
+  ],
+  "weeks": [
+    {
+      "name": "SEMAINE 1 — Lancement",
+      "days": [
+        {
+          "name": "Lundi",
+          "is_ems": false,
+          "is_meal_prep": false,
+          "meals": [
+            {"name": "Nom du repas 1", "desc": "description courte avec ingredients quantifies et methode", "kcal": 480, "macros": "P38 G48 L14"},
+            {"name": "Nom du repas 2", "desc": "...", "kcal": 620, "macros": "P48 G58 L16"},
+            {"name": "Collation", "desc": "...", "kcal": 260, "macros": "P14 G28 L10"},
+            {"name": "Diner", "desc": "...", "kcal": 580, "macros": "P42 G52 L14"}
+          ]
+        }
+      ]
+    }
+  ],
+  "shopping": [
+    ["PROTEINES", "Liste de proteines avec quantites precises"],
+    ["LAITIERS", "Liste produits laitiers"],
+    ["FECULENTS", "Liste feculents"],
+    ["FRUITS & LEGUMES", "Liste fruits et legumes"],
+    ["MATIERES GRASSES", "Liste matieres grasses"],
+    ["EPICERIE & SAUCES", "Liste epicerie et sauces"]
+  ],
+  "budget_estimate": "55-65 EUR",
+  "tips": [
+    ["Titre court conseil 1", "Explication detaillee adaptee au profil du client"],
+    ["Titre court conseil 2", "..."],
+    ["Titre court conseil 3", "..."],
+    ["Titre court conseil 4", "..."],
+    ["Titre court conseil 5", "..."],
+    ["Titre court conseil 6", "..."],
+    ["Titre court conseil 7", "..."],
+    ["Titre court conseil 8", "..."]
+  ],
+  "monthly_goals": [
+    "Objectif 1 specifique au client",
+    "Objectif 2",
+    "Objectif 3",
+    "Objectif 4",
+    "Objectif 5",
+    "Objectif 6"
+  ]
+}
+
+RAPPELS CRITIQUES:
+- JSON PUR uniquement, pas de markdown, pas de texte avant/apres
+- 4 semaines COMPLETES (28 jours, 112 repas)
+- Chaque repas doit etre UNIQUE et PERSONNALISE (pas de generique)
+- Respecte les intolerances a 100%
+- Utilise UNIQUEMENT la langue "${lg}" pour tout le contenu textuel
+- Les valeurs numeriques (kcal, macros) doivent etre realistes
+- La somme des 4 repas de chaque jour doit etre proche des calories cibles (+/- 100 kcal)`
+}
+
 export default function NutritionPage({ lang }) {
   const t = T[lang] || T.fr
   const [profiles, sProfiles] = useState([])
@@ -85,6 +244,7 @@ export default function NutritionPage({ lang }) {
         <div className="ph" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button className="bt bs bsm" onClick={() => sSel(null)}>&larr; Retour</button>
           <h2 style={{ flex: 1 }}>{p.name || "Sans nom"}</h2>
+          {!p.program_generated && <button className="bt bp bsm" onClick={() => { const prompt = buildAIPrompt(p); navigator.clipboard.writeText(prompt); alert("Prompt IA copie !\n\n1. Colle-le dans claude.ai ou chatgpt.com\n2. Attends la reponse JSON\n3. Colle le JSON dans Claude Code\n4. Le PDF sera genere et uploade automatiquement") }}>⚡ Generer programme IA</button>}
           <button className="bt bs bsm" onClick={() => { const skip = new Set(["id","created_at","status","program_generated"]); const txt = Object.keys(p).filter(k => !skip.has(k) && p[k]).map(k => k.replace(/_/g," ").toUpperCase() + ": " + String(p[k])).join("\n"); navigator.clipboard.writeText(txt); alert("Reponses copiees !") }}>Copier reponses</button>
           <button className="bt bdd bsm" onClick={() => deleteProfile(p.id)}>Supprimer</button>
           <span style={{ fontSize: 10, fontWeight: 600, color: dayCol }}>{p.program_generated ? "\u2713 Envoy\u00e9" : days + "j d\u2019attente"}</span>
